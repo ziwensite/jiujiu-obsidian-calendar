@@ -1,4 +1,4 @@
-import { App } from 'obsidian';
+import { App, TFile } from 'obsidian';
 
 // 检查笔记是否存在
 export async function noteExists(app: App, path: string): Promise<boolean> {
@@ -10,8 +10,8 @@ export async function noteExists(app: App, path: string): Promise<boolean> {
 export async function getTemplateContent(app: App, templatePath: string): Promise<string> {
     try {
         const file = app.vault.getAbstractFileByPath(`${templatePath}.md`);
-        if (file && 'stat' in file) {
-            return await app.vault.read(file as any);
+        if (file instanceof TFile) {
+            return await app.vault.read(file);
         }
     } catch (error) {
         console.error('Failed to read template:', error);
@@ -31,9 +31,9 @@ export async function createOrOpenNote(
     if (await noteExists(app, fullPath)) {
         // 打开现有笔记
         const file = app.vault.getAbstractFileByPath(fullPath);
-        if (file && 'stat' in file) {
+        if (file instanceof TFile) {
             const leaf = app.workspace.getLeaf(false);
-            await leaf.openFile(file as any);
+            await leaf.openFile(file);
         }
     } else {
         // 新建笔记

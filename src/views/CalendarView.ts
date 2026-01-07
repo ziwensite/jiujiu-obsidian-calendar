@@ -1,8 +1,9 @@
-import { ItemView, WorkspaceLeaf, Notice, MarkdownView } from 'obsidian';
+import { ItemView, WorkspaceLeaf, Notice, MarkdownView, Modal, App, TFile } from 'obsidian';
 import { MyPlugin } from '../main';
+import { MyPluginSettings } from '../settings';
 import { getLunarDate, getHolidayInfo, getHolidayStatus, getWeekNumber, getWeekInfo, getQuarter, formatDate } from '../utils/dateUtils';
 import { noteExists, createOrOpenNote } from '../services/noteService';
-import { extractTasks, filterTasks, updateTaskInNote, Task } from '../services/taskService';
+import { extractTasks, filterTasks, updateTaskInNote, createTaskInNote, Task } from '../services/taskService';
 
 const VIEW_TYPE_CALENDAR = "jiujiu-calendar-view";
 
@@ -11,12 +12,17 @@ export class CalendarView extends ItemView {
     private plugin: MyPlugin;
     private taskStatusFilter: 'all' | 'todo' | 'done' = 'all';
     private selectedDate: Date | null = null;
-    private viewType: 'month' | 'year' = 'month'; // 添加视图类型，默认为月视图
+    private viewType: 'month' | 'year' = 'month';
+    private lastRenderedYear: number = -1;
+    private lastRenderedMonth: number = -1;
+    private lastRenderedViewType: 'month' | 'year' = 'month';
+    private lastRenderedRows: number = -1;
 
     constructor(leaf: WorkspaceLeaf, plugin: MyPlugin) {
         super(leaf);
         this.plugin = plugin;
         this.currentDate = new Date();
+        this.selectedDate = new Date(); // 初始化为今天的日期
     }
 
     getViewType(): string {
@@ -34,17 +40,23 @@ export class CalendarView extends ItemView {
     async onOpen() {
         await this.renderCalendar();
         
+        // 视图打开时自动显示当天的任务列表
+        const taskListContainer = this.containerEl.querySelector(".task-list-container") as HTMLElement;
+        if (taskListContainer && this.selectedDate) {
+            await this.renderTaskList(this.selectedDate, taskListContainer);
+        }
+        
         // 添加文件系统事件监听，实现实时更新
         this.registerEvent(this.app.vault.on('create', async () => {
-            await this.renderCalendar();
+            await this.refreshAll();
         }));
         
         this.registerEvent(this.app.vault.on('modify', async () => {
-            await this.renderCalendar();
+            await this.refreshAll();
         }));
         
         this.registerEvent(this.app.vault.on('delete', async () => {
-            await this.renderCalendar();
+            await this.refreshAll();
         }));
     }
 
@@ -53,10 +65,217 @@ export class CalendarView extends ItemView {
     }
 
     private async renderCalendar() {
-        const container = this.containerEl.children[1];
+        const container = this.containerEl.children[1] as HTMLElement;
         if (!container) return;
 
-        container.empty();
+        const currentYear = this.currentDate.getFullYear();
+        const currentMonth = this.currentDate.getMonth();
+
+        // 计算当前月份需要显示的行数
+        const firstDay = new Date(currentYear, currentMonth, 1);
+        let startDay = firstDay.getDay();
+        const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+        
+        // 周一为第一天：如果第一天是周日，需要显示6天上个月的日期，否则显示startDay-1天
+        const prevMonthDaysToShow = startDay === 0 ? 6 : startDay - 1;
+        
+        // 计算需要的行数：(上个月需要显示的天数 + 本月天数 + 7 - 1) / 7 向上取整
+        const currentRows = Math.ceil((prevMonthDaysToShow + daysInMonth) / 7);
+
+        // 检查是否需要完全重建日历结构
+        // 只有当年/月/视图类型变化，或者行数变化时，才完全重建
+        const needsFullRebuild = 
+            this.lastRenderedYear !== currentYear || 
+            this.lastRenderedMonth !== currentMonth ||
+            this.lastRenderedViewType !== this.viewType ||
+            this.lastRenderedRows !== currentRows;
+
+        if (needsFullRebuild) {
+            container.empty();
+            await this.buildCalendarStructure(container);
+            this.lastRenderedYear = currentYear;
+            this.lastRenderedMonth = currentMonth;
+            this.lastRenderedViewType = this.viewType;
+            this.lastRenderedRows = currentRows;
+        } else {
+            // 行数没有变化，只更新日历内容，不整体刷新
+            await this.updateCalendarContent();
+        }
+
+        this.updateDaySelection();
+    }
+
+    /**
+     * 当月历行数没有变化时，只更新日历内容，不整体重建DOM
+     */
+    private async updateCalendarContent() {
+        if (this.viewType === 'month') {
+            // 更新日历头部显示
+            this.updateCalendarHeader();
+            
+            // 更新所有日期单元格的完整内容
+            await this.updateMonthCalendarContent();
+        }
+    }
+
+    /**
+     * 更新月视图的完整内容，包括所有日期单元格
+     */
+    private async updateMonthCalendarContent() {
+        // 更新日历表格内容
+        const tbody = this.containerEl.querySelector('.calendar-table tbody');
+        if (!tbody) return;
+        
+        // 获取所有日期行
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        
+        // 计算当前月份的日历数据
+        const currentYear = this.currentDate.getFullYear();
+        const currentMonth = this.currentDate.getMonth();
+        
+        const firstDay = new Date(currentYear, currentMonth, 1);
+        let startDay = firstDay.getDay();
+        const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+        
+        // 周一为第一天：如果第一天是周日，需要显示6天上个月的日期，否则显示startDay-1天
+        const prevMonthDaysToShow = startDay === 0 ? 6 : startDay - 1;
+        
+        // 计算上个月的最后一天
+        const lastDayOfPrevMonth = new Date(currentYear, currentMonth, 0);
+        const prevMonthDays = lastDayOfPrevMonth.getDate();
+        const prevMonth = lastDayOfPrevMonth.getMonth();
+        const prevMonthYear = lastDayOfPrevMonth.getFullYear();
+        
+        // 计算下个月的第一天
+        const firstDayOfNextMonth = new Date(currentYear, currentMonth + 1, 1);
+        const nextMonth = firstDayOfNextMonth.getMonth();
+        const nextMonthYear = firstDayOfNextMonth.getFullYear();
+        
+        // 处理上个月的剩余天数
+        let prevMonthDay = prevMonthDays - prevMonthDaysToShow + 1;
+        
+        // 处理下个月的起始天数
+        let nextMonthDay = 1;
+        
+        let currentDay = 1;
+        
+        // 获取今天的日期
+        const today = new Date();
+        
+        // 遍历所有行，更新内容
+        for (const row of rows) {
+            // 获取当前行的所有单元格（第一个是周数，后面7个是日期）
+            const cells = Array.from(row.querySelectorAll('td'));
+            
+            // 跳过周数单元格，从第2个单元格开始（索引1）
+            for (let i = 1; i < cells.length; i++) {
+                const cell = cells[i];
+                cell.removeClass('other-month');
+                cell.removeClass('today');
+                
+                let date: Date;
+                let isOtherMonth = false;
+                
+                if (prevMonthDay <= prevMonthDays) {
+                    // 上个月的日期
+                    date = new Date(prevMonthYear, prevMonth, prevMonthDay);
+                    prevMonthDay++;
+                    isOtherMonth = true;
+                } else if (currentDay <= daysInMonth) {
+                    // 当前月的日期
+                    date = new Date(currentYear, currentMonth, currentDay);
+                    currentDay++;
+                } else {
+                    // 下个月的日期
+                    date = new Date(nextMonthYear, nextMonth, nextMonthDay);
+                    nextMonthDay++;
+                    isOtherMonth = true;
+                }
+                
+                if (isOtherMonth) {
+                    cell.addClass('other-month');
+                }
+                
+                // 检查是否是今天
+                if (date.toDateString() === today.toDateString()) {
+                    cell.addClass('today');
+                }
+                
+                // 更新日期数字
+                const dateContainer = cell.querySelector('.date-container');
+                if (dateContainer) {
+                    // 清空现有内容
+                    dateContainer.empty();
+                    
+                    // 日期数字
+                    const dayNumber = dateContainer.createEl('span', {
+                        text: `${date.getDate()}`,
+                        cls: 'day-number'
+                    });
+                    
+                    // 检查是否是周末
+                    // 周一为第一天时，周六（i=6）和周日（i=7）为周末
+                    if (i === 6 || i === 7) {
+                        dayNumber.style.color = 'var(--interactive-accent)';
+                    }
+                    
+                    // 添加法定节假日状态标记（休/班）
+                    const status = getHolidayStatus(date);
+                    if (status) {
+                        dateContainer.createEl('span', {
+                            text: status,
+                            cls: `holiday-status ${status === '休' ? 'holiday' : 'workday'}`
+                        });
+                    }
+                }
+                
+                // 更新农历日期
+                const lunarDate = cell.querySelector('.lunar-date');
+                if (lunarDate) {
+                    const lunarDateResult = getLunarDate(date);
+                    lunarDate.textContent = lunarDateResult.text;
+                    lunarDate.className = `lunar-date lunar-${lunarDateResult.type}`;
+                }
+            }
+        }
+        
+        // 更新所有指示器
+        await this.updateIndicators();
+    }
+
+    /**
+     * 更新日历头部显示
+     */
+    private updateCalendarHeader() {
+        // 更新年份显示
+        const yearContent = this.containerEl.querySelector('.calendar-header-content');
+        if (yearContent) {
+            const yearSpan = yearContent.querySelector('span');
+            if (yearSpan) {
+                yearSpan.textContent = `${this.currentDate.getFullYear()}年`;
+            }
+        }
+        
+        // 更新季度显示
+        const quarterContent = this.containerEl.querySelector('.calendar-header-content-quarter');
+        if (quarterContent) {
+            const quarterSpan = quarterContent.querySelector('span');
+            if (quarterSpan) {
+                quarterSpan.textContent = `${getQuarter(this.currentDate)}季度`;
+            }
+        }
+        
+        // 更新月份显示
+        const monthContent = this.containerEl.querySelector('.calendar-header-block-month .calendar-header-content');
+        if (monthContent) {
+            const monthSpan = monthContent.querySelector('span');
+            if (monthSpan) {
+                monthSpan.textContent = `${this.currentDate.getMonth() + 1}月`;
+            }
+        }
+    }
+
+    private async buildCalendarStructure(container: HTMLElement) {
 
         // 日历头部
         const header = container.createEl("div", {cls: "calendar-header"});
@@ -78,6 +297,13 @@ export class CalendarView extends ItemView {
         const yearContent = yearNavBody.createEl("div", {cls: "calendar-header-content"});
         yearContent.createEl("span", { 
             text: `${this.currentDate.getFullYear()}年`,
+        });
+        yearContent.addEventListener("click", async () => {
+            // 显示当年所有任务
+            const year = this.currentDate.getFullYear();
+            const startDate = new Date(year, 0, 1);
+            const endDate = new Date(year, 11, 31);
+            await this.renderTaskListByDateRange(startDate, endDate);
         });
         yearContent.addEventListener("dblclick", async () => {
             await this.handleYearDoubleClick();
@@ -107,6 +333,17 @@ export class CalendarView extends ItemView {
          quarterContent.createEl("span", { 
              text: `${getQuarter(this.currentDate)}季度`,
          });
+        quarterContent.addEventListener("click", async () => {
+            // 显示当季度所有任务
+            const year = this.currentDate.getFullYear();
+            const currentMonth = this.currentDate.getMonth();
+            const quarter = Math.floor(currentMonth / 3);
+            const quarterStartMonth = quarter * 3;
+            const quarterEndMonth = quarter * 3 + 2;
+            const startDate = new Date(year, quarterStartMonth, 1);
+            const endDate = new Date(year, quarterEndMonth + 1, 0);
+            await this.renderTaskListByDateRange(startDate, endDate);
+        });
         quarterContent.addEventListener("dblclick", () => {
             this.handleQuarterDoubleClick();
         });
@@ -138,6 +375,14 @@ export class CalendarView extends ItemView {
         monthContent.createEl("span", { 
             text: `${this.currentDate.getMonth() + 1}月`,
         });
+        monthContent.addEventListener("click", async () => {
+            // 显示当月所有任务
+            const year = this.currentDate.getFullYear();
+            const month = this.currentDate.getMonth();
+            const startDate = new Date(year, month, 1);
+            const endDate = new Date(year, month + 1, 0);
+            await this.renderTaskListByDateRange(startDate, endDate);
+        });
         monthContent.addEventListener("dblclick", () => {
             this.handleMonthDoubleClick();
         });
@@ -152,11 +397,10 @@ export class CalendarView extends ItemView {
         // 今日和视图切换按钮
         const labelBlock = bottomRow.createEl("div", {cls: "calendar-header-block-label"});
         
-        // 今日按钮：根据日视图是否选中今天日期来决定样式
+        // 今日按钮：根据是否选中今天日期来决定样式
         const currentToday = new Date();
         const isTodaySelected = this.selectedDate && 
-            this.selectedDate.toDateString() === currentToday.toDateString() &&
-            this.currentDate.toDateString() === currentToday.toDateString();
+            this.selectedDate.toDateString() === currentToday.toDateString();
         const todayBtn = labelBlock.createEl("div", { 
             text: "今",
             cls: `today-label ${isTodaySelected ? 'today-selected' : 'today-unselected'}`
@@ -276,6 +520,17 @@ export class CalendarView extends ItemView {
             
             // 周数状态指示器
             const weekIndicators = weekNumberCell.createEl("div", {cls: "week-indicators"});
+            
+            // 周数单元格单击事件 - 显示该周的任务
+            weekNumberCell.addEventListener("click", async () => {
+                // 计算周的开始和结束日期
+                const weekStart = new Date(adjustedDate);
+                const weekEnd = new Date(adjustedDate);
+                weekEnd.setDate(weekEnd.getDate() + 6);
+                
+                // 显示该周内的任务
+                await this.renderTaskListByDateRange(weekStart, weekEnd);
+            });
             
             // 周数单元格双击事件
             weekNumberCell.addEventListener("dblclick", () => {
@@ -633,6 +888,30 @@ export class CalendarView extends ItemView {
             }
         });
         
+        // 新建按钮
+        const newTaskBtn = filterButtons.createEl("button", {text: "新建"});
+        newTaskBtn.className = "filter-btn new-task-btn";
+        newTaskBtn.addEventListener("click", () => {
+            if (this.selectedDate) {
+                // 调用添加任务的模态对话框
+                const modal = new TaskAddModal(this.app, "", this.selectedDate, this.plugin.settings, async (insertTarget, customNotePath) => {
+                    try {
+                        await createTaskInNote(this.app, "", this.selectedDate!, this.plugin.settings, insertTarget, customNotePath);
+                        
+                        // 刷新任务列表和日历
+                        await this.refreshCalendar();
+                        await this.refreshTaskList();
+                    } catch (error) {
+                        console.error(`Failed to add task:`, error);
+                        new Notice(`添加任务失败`);
+                    }
+                });
+                modal.open();
+            } else {
+                new Notice("请先选择日期");
+            }
+        });
+        
         const taskList = taskListContainer.createEl("div", {cls: "task-list"});
         taskList.setText("单击日期查看任务");
     }
@@ -673,33 +952,92 @@ export class CalendarView extends ItemView {
     }
 
     private async renderTaskList(date: Date, container: HTMLElement) {
-        // 清空现有任务列表
-        const taskList = container.querySelector(".task-list") as HTMLElement;
+        // 获取任务列表容器
+        let taskList = container.querySelector(".task-list") as HTMLElement;
         if (taskList) {
-            taskList.empty();
-        }
+            // 从笔记中提取任务并应用筛选
+            const allTasks = await extractTasks(this.app, this.plugin.settings);
+            const filteredByDate = filterTasks(allTasks, this.plugin.settings, date);
+            
+            // 根据状态筛选任务
+            let filteredTasks = filteredByDate;
+            if (this.taskStatusFilter === 'todo') {
+                filteredTasks = filteredByDate.filter(task => !task.completed);
+            } else if (this.taskStatusFilter === 'done') {
+                filteredTasks = filteredByDate.filter(task => task.completed);
+            }
 
-        // 从笔记中提取任务并应用筛选
-        const allTasks = await extractTasks(this.app, this.plugin.settings);
-        const filteredByDate = filterTasks(allTasks, this.plugin.settings, date);
+            // 更新任务列表，采用高效的方式
+            this.updateTaskListItems(taskList, filteredTasks, date);
+        }
+    }
+
+    /**
+     * 高效更新任务列表项，只添加新任务，删除不再存在的任务，更新现有任务的状态
+     */
+    private updateTaskListItems(taskList: HTMLElement, tasks: Task[], date: Date) {
+        // 保存当前所有任务项
+        const currentTaskItems = Array.from(taskList.querySelectorAll(".task-item")) as HTMLElement[];
+        const newTaskMap = new Map<string, Task>();
         
-        // 根据状态筛选任务
-        let filteredTasks = filteredByDate;
-        if (this.taskStatusFilter === 'todo') {
-            filteredTasks = filteredByDate.filter(task => !task.completed);
-        } else if (this.taskStatusFilter === 'done') {
-            filteredTasks = filteredByDate.filter(task => task.completed);
+        // 生成新任务的唯一标识
+        tasks.forEach(task => {
+            // 使用任务文本和文件路径作为唯一标识
+            const taskId = `${task.text}-${task.filePath}`;
+            newTaskMap.set(taskId, task);
+        });
+        
+        // 1. 更新或删除现有任务项
+        const tasksToKeep: HTMLElement[] = [];
+        
+        for (const taskItem of currentTaskItems) {
+            const taskTextEl = taskItem.querySelector(".task-text") as HTMLElement;
+            const taskCheckbox = taskItem.querySelector(".task-checkbox") as HTMLInputElement;
+            
+            if (taskTextEl && taskCheckbox) {
+                const taskText = taskTextEl.dataset.text || taskTextEl.textContent || "";
+                const fileElement = taskItem.querySelector(".task-file");
+                const filePath = fileElement ? fileElement.textContent || "" : "";
+                const taskId = `${taskText}-${filePath}`;
+                
+                if (newTaskMap.has(taskId)) {
+                    // 任务仍然存在，更新状态
+                    const task = newTaskMap.get(taskId)!;
+                    
+                    // 更新复选框状态
+                    if (taskCheckbox.checked !== task.completed) {
+                        taskCheckbox.checked = task.completed;
+                    }
+                    
+                    // 更新文本样式（完成状态）
+                    if (task.completed && !taskTextEl.hasClass("completed")) {
+                        taskTextEl.addClass("completed");
+                    } else if (!task.completed && taskTextEl.hasClass("completed")) {
+                        taskTextEl.removeClass("completed");
+                    }
+                    
+                    // 保留此任务项
+                    tasksToKeep.push(taskItem);
+                    // 从新任务映射中移除，剩下的就是需要添加的新任务
+                    newTaskMap.delete(taskId);
+                } else {
+                    // 任务不再存在，删除
+                    taskItem.remove();
+                }
+            }
         }
-
-        // 渲染任务列表
-        filteredTasks.forEach((task, index) => {
+        
+        // 2. 添加新任务项
+        let taskIndex = tasksToKeep.length;
+        
+        newTaskMap.forEach(task => {
             const taskItem = taskList.createEl("div", { cls: "task-item" });
             
             const checkbox = taskItem.createEl("input", { type: "checkbox" });
             checkbox.className = "task-checkbox";
             checkbox.checked = task.completed;
             checkbox.addEventListener("change", () => {
-                this.handleTaskToggle(index, checkbox.checked);
+                this.handleTaskToggle(taskIndex, checkbox.checked);
             });
             
             const taskContent = taskItem.createEl("div", { cls: "task-content" });
@@ -710,6 +1048,10 @@ export class CalendarView extends ItemView {
             if (task.completed) {
                 taskText.addClass("completed");
             }
+            
+            // 添加任务文件路径（用于唯一标识）
+            const taskFile = taskItem.createEl("div", { cls: "task-file", text: task.filePath });
+            taskFile.style.display = "none";
             
             // 双击任务内容打开对应笔记并选中任务
             taskContent.addEventListener("dblclick", async (e) => {
@@ -736,8 +1078,8 @@ export class CalendarView extends ItemView {
                                     const startPos = { line, ch: taskStart };
                                     const endPos = { line, ch: taskEnd };
                                     editor.setSelection(startPos, endPos);
-                                    // 滚动到任务位置，使用默认参数
-                                    editor.scrollIntoView({ from: startPos, to: endPos });
+                                    // 滚动到任务位置，确保选中内容居中显示
+                                    editor.scrollIntoView({ from: startPos, to: endPos }, true);
                                 }
                             }
                         }
@@ -750,36 +1092,17 @@ export class CalendarView extends ItemView {
                 e.stopPropagation(); // 阻止事件冒泡
                 taskText.classList.toggle("expanded");
             });
-        });
-
-        // 添加新建任务输入框
-        const addTaskContainer = taskList.createEl("div", { cls: "add-task-container" });
-        const input = addTaskContainer.createEl("input", { type: "text", placeholder: "添加新任务" });
-        input.className = "add-task-input";
-        
-        const addBtn = addTaskContainer.createEl("button", { text: "添加" });
-        addBtn.className = "add-task-button";
-        addBtn.addEventListener("click", () => {
-            this.handleAddTask(input.value, date);
-            input.value = "";
-        });
-        
-        // 回车添加任务
-        input.addEventListener("keypress", (e) => {
-            if (e.key === "Enter") {
-                this.handleAddTask(input.value, date);
-                input.value = "";
-            }
+            
+            taskIndex++;
         });
     }
 
     private async renderTaskListByDateRange(startDate: Date, endDate: Date) {
-        // 清空现有任务列表
+        // 获取任务列表容器
         const taskListContainer = this.containerEl.querySelector(".task-list-container") as HTMLElement;
         if (!taskListContainer) return;
         const taskList = taskListContainer.querySelector(".task-list") as HTMLElement;
         if (!taskList) return;
-        taskList.empty();
 
         // 从笔记中提取任务
         const allTasks = await extractTasks(this.app, this.plugin.settings);
@@ -798,87 +1121,8 @@ export class CalendarView extends ItemView {
             filteredTasks = filteredByDateRange.filter(task => task.completed);
         }
 
-        // 渲染任务列表
-        filteredTasks.forEach((task, index) => {
-            const taskItem = taskList.createEl("div", { cls: "task-item" });
-            
-            const checkbox = taskItem.createEl("input", { type: "checkbox" });
-            checkbox.className = "task-checkbox";
-            checkbox.checked = task.completed;
-            checkbox.addEventListener("change", () => {
-                this.handleTaskToggle(index, checkbox.checked);
-            });
-            
-            const taskContent = taskItem.createEl("div", { cls: "task-content" });
-            
-            const taskText = taskContent.createEl("span", { text: task.text });
-            taskText.className = "task-text";
-            taskText.dataset.text = task.text;
-            if (task.completed) {
-                taskText.addClass("completed");
-            }
-            
-            // 双击任务内容打开对应笔记并选中任务
-            taskContent.addEventListener("dblclick", async (e) => {
-                e.stopPropagation(); // 阻止事件冒泡
-                const file = this.app.vault.getAbstractFileByPath(task.filePath);
-                if (file && 'stat' in file) {
-                    const leaf = this.app.workspace.getLeaf(false);
-                    await leaf.openFile(file as any);
-                    
-                    // 尝试选中任务（如果是Markdown文件）
-                    const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
-                    if (activeView) {
-                        const editor = activeView.editor;
-                        const content = editor.getValue();
-                        const taskIndex = content.indexOf(task.text);
-                        if (taskIndex !== -1) {
-                            const line = content.substring(0, taskIndex).split('\n').length - 1;
-                            const lines = content.split('\n');
-                            const lineContent = lines[line];
-                            if (lineContent) {
-                                const taskStart = lineContent.indexOf(task.text);
-                                if (taskStart !== -1) {
-                                    const taskEnd = taskStart + task.text.length;
-                                    const startPos = { line, ch: taskStart };
-                                    const endPos = { line, ch: taskEnd };
-                                    editor.setSelection(startPos, endPos);
-                                    // 滚动到任务位置，使用默认参数
-                                    editor.scrollIntoView({ from: startPos, to: endPos });
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-            
-            // 点击任务文本展开/收缩
-            taskContent.addEventListener("click", (e) => {
-                e.stopPropagation(); // 阻止事件冒泡
-                taskText.classList.toggle("expanded");
-            });
-        });
-
-        // 添加新建任务输入框
-        const addTaskContainer = taskList.createEl("div", { cls: "add-task-container" });
-        const input = addTaskContainer.createEl("input", { type: "text", placeholder: "添加新任务" });
-        input.className = "add-task-input";
-        
-        const addBtn = addTaskContainer.createEl("button", { text: "添加" });
-        addBtn.className = "add-task-button";
-        addBtn.addEventListener("click", () => {
-            // 添加任务到默认日期（日期范围的开始）
-            this.handleAddTask(input.value, startDate);
-            input.value = "";
-        });
-        
-        // 回车添加任务
-        input.addEventListener("keypress", (e) => {
-            if (e.key === "Enter") {
-                this.handleAddTask(input.value, startDate);
-                input.value = "";
-            }
-        });
+        // 高效更新任务列表
+        this.updateTaskListItems(taskList, filteredTasks, startDate);
     }
 
     private async handleTaskToggle(taskId: number, completed: boolean) {
@@ -903,14 +1147,11 @@ export class CalendarView extends ItemView {
                 // 更新笔记中的任务状态
                 await updateTaskInNote(this.app, task, completed);
                 
-                // 重新渲染任务列表，显示最新状态
-                const taskListContainer = this.containerEl.querySelector(".task-list-container") as HTMLElement;
-                if (taskListContainer) {
-                    await this.renderTaskList(this.selectedDate, taskListContainer);
-                }
+                // 仅刷新任务列表，显示最新状态
+                await this.refreshTaskList();
                 
-                // 重新渲染日历，更新小圆点
-                await this.renderCalendar();
+                // 仅刷新日历，更新小圆点
+                await this.refreshCalendar();
             }
         }
     }
@@ -921,11 +1162,25 @@ export class CalendarView extends ItemView {
         // 后续需要从笔记中删除
     }
 
-    private handleAddTask(taskText: string, date: Date) {
+    private async handleAddTask(taskText: string, date: Date) {
         // 处理添加新任务
         if (taskText.trim()) {
-            new Notice(`添加任务: ${taskText}`);
-            // 后续需要添加到笔记中
+            // 创建添加任务选项菜单
+            const modal = new TaskAddModal(this.app, taskText, date, this.plugin.settings, async (insertTarget, customNotePath) => {
+                new Notice(`添加任务: ${taskText}`);
+                
+                try {
+                    await createTaskInNote(this.app, taskText, date, this.plugin.settings, insertTarget, customNotePath);
+                    
+                    // 仅刷新任务列表和日历，更新显示
+                    await this.refreshCalendar();
+                    await this.refreshTaskList();
+                } catch (error) {
+                    console.error(`Failed to add task:`, error);
+                    new Notice(`添加任务失败`);
+                }
+            });
+            modal.open();
         }
     }
 
@@ -980,6 +1235,218 @@ export class CalendarView extends ItemView {
         }
     }
     
+    /**
+     * 更新所有日期和周数的指示器，而不重建整个日历结构
+     * 采用整体同步覆盖的方式，一次性更新所有内容
+     */
+    private async updateIndicators() {
+        if (this.viewType === 'month') {
+            // 批量收集所有需要更新的数据
+            const dayIndicatorData = await this.collectDayIndicatorData();
+            const weekIndicatorData = await this.collectWeekIndicatorData();
+            
+            // 一次性更新所有指示器，避免逐行刷新的视觉效果
+            this.applyDayIndicators(dayIndicatorData);
+            this.applyWeekIndicators(weekIndicatorData);
+        }
+        // 如果选中了日期，更新任务列表
+        if (this.selectedDate) {
+            await this.refreshTaskList();
+        }
+    }
+
+    /**
+     * 收集所有日期指示器的数据
+     */
+    private async collectDayIndicatorData() {
+        const dayIndicatorData = new Map<string, { hasNote: boolean; hasTask: boolean }>();
+        const dayCells = Array.from(this.containerEl.querySelectorAll('.day-cell:not(.other-month)'));
+        
+        for (const cell of dayCells) {
+            const dayNumberEl = cell.querySelector('.day-number');
+            if (!dayNumberEl) continue;
+            
+            const dayNumber = parseInt(dayNumberEl.textContent || '0');
+            if (isNaN(dayNumber)) continue;
+            
+            // 获取当前视图的年月
+            const year = this.currentDate.getFullYear();
+            const month = this.currentDate.getMonth();
+            const date = new Date(year, month, dayNumber);
+            
+            // 检查是否有日记和任务
+            const dailySettings = this.plugin.settings.dailyNote;
+            const dailyFileName = formatDate(date, dailySettings.fileNameFormat);
+            const dailyNotePath = `${dailySettings.savePath}/${dailyFileName}.md`;
+            
+            let hasNote = false;
+            let hasTask = false;
+            
+            if (await noteExists(this.app, dailyNotePath)) {
+                hasNote = true;
+                // 有日记，检查是否有任务
+                try {
+                    const file = this.app.vault.getAbstractFileByPath(dailyNotePath);
+                    if (file instanceof TFile) {
+                        const content = await this.app.vault.read(file);
+                        
+                        // 检查日记中是否有任务
+                        const taskRegex = /^\s*([-\*\d]+\.?)\s*\[([ xX])\]/gm;
+                        const tasks = content.match(taskRegex);
+                        
+                        if (tasks && tasks.length > 0) {
+                            hasTask = true;
+                        }
+                    }
+                } catch (error) {
+                    console.error(`Failed to read daily note: ${dailyNotePath}`, error);
+                }
+            }
+            
+            // 存储数据，使用日期字符串作为键
+            dayIndicatorData.set(`${year}-${month}-${dayNumber}`, { hasNote, hasTask });
+        }
+        
+        return dayIndicatorData;
+    }
+
+    /**
+     * 收集所有周数指示器的数据
+     */
+    private async collectWeekIndicatorData() {
+        const weekIndicatorData = new Map<string, { weekStartDate: Date; weekNumber: number }>();
+        const weekCells = Array.from(this.containerEl.querySelectorAll('.week-number-cell'));
+        
+        for (const cell of weekCells) {
+            const weekNumberEl = cell.querySelector('.week-number-text');
+            if (!weekNumberEl) continue;
+            
+            const weekNumber = parseInt(weekNumberEl.textContent || '0');
+            if (isNaN(weekNumber)) continue;
+            
+            // 确定当前行的第一个有效日期
+            const firstDayOfMonth = new Date(this.currentDate.getFullYear(), this.currentDate.getMonth(), 1);
+            const startDayOfWeek = firstDayOfMonth.getDay();
+            const prevMonthDaysToShow = startDayOfWeek === 0 ? 6 : startDayOfWeek - 1;
+            
+            // 计算当前周的起始日期
+            const weekStartDate = new Date(this.currentDate.getFullYear(), this.currentDate.getMonth(), 1);
+            weekStartDate.setDate(weekStartDate.getDate() - prevMonthDaysToShow + (weekNumber - 1) * 7);
+            
+            // 存储数据，使用周数作为键
+            weekIndicatorData.set(`${weekNumber}`, { weekStartDate, weekNumber });
+        }
+        
+        return weekIndicatorData;
+    }
+
+    /**
+     * 一次性应用所有日期指示器数据
+     */
+    private applyDayIndicators(dayIndicatorData: Map<string, { hasNote: boolean; hasTask: boolean }>) {
+        const dayCells = Array.from(this.containerEl.querySelectorAll('.day-cell:not(.other-month)'));
+        
+        for (const cell of dayCells) {
+            const dayNumberEl = cell.querySelector('.day-number');
+            if (!dayNumberEl) continue;
+            
+            const dayNumber = parseInt(dayNumberEl.textContent || '0');
+            if (isNaN(dayNumber)) continue;
+            
+            // 获取当前视图的年月
+            const year = this.currentDate.getFullYear();
+            const month = this.currentDate.getMonth();
+            const dataKey = `${year}-${month}-${dayNumber}`;
+            
+            const data = dayIndicatorData.get(dataKey);
+            if (!data) continue;
+            
+            // 清空现有指示器
+            const indicatorsContainer = cell.querySelector('.day-indicators');
+            if (indicatorsContainer) {
+                indicatorsContainer.empty();
+                
+                // 创建一行指示器
+                const indicatorRow = indicatorsContainer.createEl('div', {cls: 'indicator-row'});
+                
+                // 显示日记指示器（实心小圆点）
+                if (data.hasNote) {
+                    indicatorRow.createEl('div', {cls: 'indicator-dot solid-dot'});
+                }
+                
+                // 显示任务指示器（空心小圆点）
+                if (data.hasTask) {
+                    indicatorRow.createEl('div', {cls: 'indicator-dot hollow-dot'});
+                }
+            }
+        }
+    }
+
+    /**
+     * 一次性应用所有周数指示器数据
+     */
+    private async applyWeekIndicators(weekIndicatorData: Map<string, { weekStartDate: Date; weekNumber: number }>) {
+        const weekCells = Array.from(this.containerEl.querySelectorAll('.week-number-cell'));
+        
+        // 先收集所有需要异步处理的检查
+        const checkPromises: Promise<{ cell: Element; weekStartDate: Date; weekNumber: number; indicators: HTMLElement }>[] = [];
+        
+        for (const cell of weekCells) {
+            const weekNumberEl = cell.querySelector('.week-number-text');
+            if (!weekNumberEl) continue;
+            
+            const weekNumber = parseInt(weekNumberEl.textContent || '0');
+            if (isNaN(weekNumber)) continue;
+            
+            const dataKey = `${weekNumber}`;
+            const data = weekIndicatorData.get(dataKey);
+            if (!data) continue;
+            
+            // 清空现有指示器
+            const indicators = cell.querySelector('.week-indicators') as HTMLElement;
+            if (indicators) {
+                indicators.empty();
+                checkPromises.push(Promise.resolve({ cell, weekStartDate: data.weekStartDate, weekNumber: data.weekNumber, indicators }));
+            }
+        }
+        
+        // 并行执行所有检查
+        const checkResults = await Promise.all(checkPromises);
+        
+        // 一次性应用所有结果
+        for (const result of checkResults) {
+            await this.checkWeekNoteAndTasks(result.weekStartDate, result.weekNumber, result.indicators);
+        }
+    }
+
+    /**
+     * 完全刷新视图
+     */
+    private async refreshAll() {
+        // 对于增量更新，我们只需要更新指示器和任务列表
+        await this.updateIndicators();
+    }
+
+    /**
+     * 仅刷新日历部分
+     */
+    private async refreshCalendar() {
+        // 使用局部更新方式，只更新指示器
+        await this.updateIndicators();
+    }
+
+    /**
+     * 仅刷新任务列表
+     */
+    private async refreshTaskList() {
+        if (this.selectedDate) {
+            const taskListContainer = this.containerEl.querySelector(".task-list-container") as HTMLElement;
+            if (taskListContainer) {
+                await this.renderTaskList(this.selectedDate, taskListContainer);
+            }
+        }
+    }
+
     private async onDayClick(date: Date) {
         // 更新选中日期
         this.selectedDate = date;
@@ -987,13 +1454,143 @@ export class CalendarView extends ItemView {
         // 更新当前日期
         this.currentDate = date;
         
-        // 重新渲染日历，以更新选中状态
-        await this.renderCalendar();
+        // 直接更新日期单元格的选中状态，避免重新渲染整个日历
+        this.updateDaySelection();
         
-        // 更新任务列表
+        // 只更新任务列表
         const taskListContainer = this.containerEl.querySelector(".task-list-container") as HTMLElement;
         if (taskListContainer) {
             await this.renderTaskList(date, taskListContainer);
         }
+    }
+
+    /**
+     * 更新日期单元格的选中状态，避免重新渲染整个日历
+     */
+    private updateDaySelection() {
+        // 移除所有日期单元格的选中状态
+        this.containerEl.querySelectorAll(".day-cell").forEach(cell => {
+            cell.removeClass("selected-day");
+        });
+        
+        // 找到当前选中日期的单元格并添加选中状态
+        if (this.selectedDate) {
+            const year = this.selectedDate.getFullYear();
+            const month = this.selectedDate.getMonth();
+            const day = this.selectedDate.getDate();
+            
+            // 获取当前视图显示的月份
+            const currentViewYear = this.currentDate.getFullYear();
+            const currentViewMonth = this.currentDate.getMonth();
+            
+            // 计算当前视图中日期的位置
+            const firstDayOfMonth = new Date(currentViewYear, currentViewMonth, 1);
+            const startDayOfWeek = firstDayOfMonth.getDay();
+            const prevMonthDaysToShow = startDayOfWeek === 0 ? 6 : startDayOfWeek - 1;
+            
+            // 计算选中日期在当前视图中的索引
+            let dayIndex = prevMonthDaysToShow + day;
+            if (month === currentViewMonth && year === currentViewYear) {
+                // 选中日期在当前月份视图中
+                const allDayCells = Array.from(this.containerEl.querySelectorAll(".day-cell:not(.other-month)"));
+                const selectedCell = allDayCells[day - 1];
+                if (selectedCell) {
+                    selectedCell.addClass("selected-day");
+                }
+            }
+        }
+        
+        // 更新"今"字按钮的样式，根据今天是否被选中
+        const currentToday = new Date();
+        const isTodaySelected = this.selectedDate && 
+            this.selectedDate.toDateString() === currentToday.toDateString();
+        
+        const todayBtn = this.containerEl.querySelector(".today-label");
+        if (todayBtn) {
+            if (isTodaySelected) {
+                todayBtn.addClass("today-selected");
+                todayBtn.removeClass("today-unselected");
+            } else {
+                todayBtn.addClass("today-unselected");
+                todayBtn.removeClass("today-selected");
+            }
+        }
+    }
+}
+
+// 添加任务的模态对话框
+class TaskAddModal extends Modal {
+    private taskText: string;
+    private date: Date;
+    private settings: MyPluginSettings;
+    private onSubmit: (insertTarget: "daily" | "note" | "current", customNotePath?: string) => Promise<void>;
+    
+    constructor(app: App, taskText: string, date: Date, settings: MyPluginSettings, onSubmit: (insertTarget: "daily" | "note" | "current", customNotePath?: string) => Promise<void>) {
+        super(app);
+        this.taskText = taskText;
+        this.date = date;
+        this.settings = settings;
+        this.onSubmit = onSubmit;
+    }
+    
+    onOpen() {
+        const { contentEl } = this;
+        
+        contentEl.createEl("h2", { text: "添加任务" });
+        
+        // 简单选项部分
+        const simpleOptions = contentEl.createEl("div", { cls: "modal-simple-options" });
+        simpleOptions.createEl("h3", { text: "快速添加" });
+        
+        // 选项1：日记
+        const option1 = simpleOptions.createEl("button", { 
+            text: "日记：插入到当天日记", 
+            cls: "modal-option-btn"
+        });
+        option1.addEventListener("click", async () => {
+            await this.onSubmit("daily");
+            this.close();
+        });
+        
+        // 选项2：默认笔记
+        const option2 = simpleOptions.createEl("button", { 
+            text: "笔记：插入到默认笔记", 
+            cls: "modal-option-btn"
+        });
+        option2.addEventListener("click", async () => {
+            await this.onSubmit("note");
+            this.close();
+        });
+        
+        // 选项3：当前笔记
+        const option3 = simpleOptions.createEl("button", { 
+            text: "当前：插入到已打开笔记", 
+            cls: "modal-option-btn"
+        });
+        option3.addEventListener("click", async () => {
+            await this.onSubmit("current");
+            this.close();
+        });
+        
+        // 详细设置部分
+        const detailedOptions = contentEl.createEl("div", { cls: "modal-detailed-options" });
+        detailedOptions.createEl("h3", { text: "详细设置" });
+        
+        // 详细设置按钮
+        const detailedBtn = detailedOptions.createEl("button", { 
+            text: "详细：自定义任务属性", 
+            cls: "modal-option-btn modal-detailed-btn"
+        });
+        detailedBtn.addEventListener("click", () => {
+            // 这里可以实现更复杂的详细设置对话框
+            // 目前简化处理，直接使用默认设置
+            new Notice("详细设置功能开发中");
+            this.close();
+        });
+    }
+    
+    onClose() {
+        const { contentEl } = this;
+        contentEl.empty();
     }
 }

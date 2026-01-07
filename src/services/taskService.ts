@@ -1,6 +1,7 @@
-import { App } from 'obsidian';
+import { App, MarkdownView, TFile } from 'obsidian';
 import { taskRegex, dueDateRegex, escapeRegExp } from '../utils/regexUtils';
 import { MyPluginSettings } from '../settings';
+import { formatDate } from '../utils/dateUtils';
 
 export interface Task {
     text: string;
@@ -262,8 +263,8 @@ export async function updateTaskInNote(app: App, task: Task, completed: boolean)
     try {
         // 读取笔记内容
         const file = app.vault.getAbstractFileByPath(task.filePath);
-        if (file && 'stat' in file) {
-            const content = await app.vault.read(file as any);
+        if (file instanceof TFile) {
+            const content = await app.vault.read(file);
             
             // 构建任务的正则表达式，匹配原始任务行
             const taskRegex = new RegExp(`^\s*-\s*\[(.)\]\s*${escapeRegExp(task.rawText)}`, 'm');
@@ -274,10 +275,147 @@ export async function updateTaskInNote(app: App, task: Task, completed: boolean)
             });
             
             // 保存修改后的内容
-            await app.vault.modify(file as any, newContent);
+            await app.vault.modify(file, newContent);
         }
     } catch (error) {
         console.error(`Failed to update task in note: ${task.filePath}`, error);
+        throw error;
+    }
+}
+
+// 在笔记中创建任务
+export async function createTaskInNote(
+    app: App, 
+    taskText: string, 
+    date: Date, 
+    settings: MyPluginSettings,
+    insertTarget: "daily" | "note" | "current",
+    customNotePath?: string
+): Promise<void> {
+    try {
+        let notePath: string;
+        let insertSettings: { insertSection: string; insertPosition: "first" | "last" };
+        
+        // 根据插入目标确定任务插入位置和设置
+        if (insertTarget === "daily") {
+            // 生成当天日记的路径
+            const dailySettings = settings.dailyNote;
+            const dailyFileName = formatDate(date, dailySettings.fileNameFormat);
+            notePath = `${dailySettings.savePath}/${dailyFileName}.md`;
+            insertSettings = settings.taskSettings.dailyInsertSettings;
+        } else if (insertTarget === "note") {
+            // 使用默认笔记路径或自定义路径
+            notePath = customNotePath || settings.taskSettings.defaultNotePath;
+            insertSettings = settings.taskSettings.noteInsertSettings;
+        } else {
+            // 在当前打开的笔记中插入
+            const activeView = app.workspace.getActiveViewOfType(MarkdownView);
+            if (!activeView) {
+                console.error("No active markdown view found");
+                return;
+            }
+            
+            const file = activeView.file;
+            if (!file) {
+                console.error("No file found in active view");
+                return;
+            }
+            
+            notePath = file.path;
+            insertSettings = settings.taskSettings.noteInsertSettings;
+        }
+        
+        // 检查笔记是否存在
+        const file = app.vault.getAbstractFileByPath(notePath);
+        if (!file || !(file instanceof TFile)) {
+            console.error(`Note not found: ${notePath}`);
+            return;
+        }
+        
+        // 构建tasks插件标准的任务格式
+        const taskParts: string[] = [];
+        
+        // 添加状态
+        if (settings.taskSettings.defaultStatus) {
+            taskParts.push(`${settings.taskSettings.defaultStatus}`);
+        }
+        
+        // 添加任务文本
+        taskParts.push(taskText);
+        
+        // 添加创建日期
+        if (settings.taskSettings.includeCreationDate) {
+            const creationDate = formatDate(new Date(), "YYYY-MM-DD");
+            taskParts.push(`🔨 ${creationDate}`);
+        }
+        
+        // 添加截止日期
+        if (settings.taskSettings.includeDueDate) {
+            const dueDate = formatDate(date, "YYYY-MM-DD");
+            taskParts.push(`📅 ${dueDate}`);
+        }
+        
+        // 添加优先级
+        if (settings.taskSettings.defaultPriority) {
+            taskParts.push(`[#${settings.taskSettings.defaultPriority}]`);
+        }
+        
+        // 生成完整的任务行
+        const fullTaskText = `- [ ] ${taskParts.join(" ")}`;
+        
+        if (insertTarget === "current") {
+            // 在当前光标位置插入
+            const activeView = app.workspace.getActiveViewOfType(MarkdownView);
+            if (activeView) {
+                const editor = activeView.editor;
+                const cursor = editor.getCursor();
+                
+                // 在光标位置插入任务
+                editor.replaceRange(`${fullTaskText}\n`, cursor);
+            }
+        } else {
+            // 读取笔记内容
+            const content = await app.vault.read(file);
+            
+            // 找到插入位置
+            const insertSection = insertSettings.insertSection;
+            const insertPosition = insertSettings.insertPosition;
+            
+            let newContent: string;
+            
+            // 查找指定章节
+            const sectionRegex = new RegExp(`(${insertSection})([\s\S]*?)(?=^#|$)`, 'm');
+            const sectionMatch = content.match(sectionRegex);
+            
+            if (sectionMatch && sectionMatch.index !== undefined && sectionMatch[1] !== undefined) {
+                // 找到章节，在章节内插入任务
+                const sectionStart = sectionMatch.index;
+                const sectionEnd = sectionStart + sectionMatch[0].length;
+                const sectionHeader = sectionMatch[1];
+                const sectionContent = sectionMatch[2] || '';
+                
+                if (insertPosition === "first") {
+                    // 插入到章节标题之后的第一行
+                    newContent = content.substring(0, sectionStart + sectionHeader.length) + 
+                                `\n${fullTaskText}` + 
+                                sectionContent + 
+                                content.substring(sectionEnd);
+                } else {
+                    // 插入到章节末尾
+                    newContent = content.substring(0, sectionEnd) + 
+                                `\n${fullTaskText}` + 
+                                content.substring(sectionEnd);
+                }
+            } else {
+                // 没有找到章节，添加到文件末尾
+                newContent = content + `\n\n${insertSection}\n${fullTaskText}`;
+            }
+            
+            // 保存修改后的内容
+            await app.vault.modify(file, newContent);
+        }
+    } catch (error) {
+        console.error(`Failed to create task in note:`, error);
         throw error;
     }
 }

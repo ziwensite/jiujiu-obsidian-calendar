@@ -282,7 +282,7 @@
 }
 
 .calendar-table th {
-    padding: 0.4em 0.2em;
+    padding: 0.2em 0.2em;
     text-align: center;
     font-weight: bold;
     color: var(--text-normal);
@@ -290,6 +290,13 @@
     font-size: 0.7em;
     width: calc(100% / 8);
     min-width: 2em;
+    height: 1.5em;
+    box-sizing: border-box;
+}
+
+/* 确保表头行高度固定且较小 */
+.calendar-table thead tr {
+    height: 1.5em;
 }
 
 .calendar-table th:first-child {
@@ -302,12 +309,29 @@
     text-align: center;
     vertical-align: top;
     min-width: 0;
-    height: auto;
-    min-height: 0;
+    height: 3em;
     border: 1px solid var(--divider-color);
     position: relative;
     aspect-ratio: 1.1;
     width: calc(100% / 8);
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+/* 确保日历行高度完全固定，避免切换时闪烁 */
+.calendar-table tr {
+    height: 3em;
+}
+
+/* 确保周数单元格和日期单元格高度一致 */
+.week-number-cell {
+    height: 3em;
+    overflow: hidden;
+}
+
+.day-cell {
+    height: 3em;
+    overflow: hidden;
 }
 
 .week-number-cell {
@@ -486,10 +510,34 @@
     border: 1px solid var(--interactive-accent);
 }
 
+/* 日历表格样式 */
+.calendar-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 0.75em;
+    table-layout: fixed;
+}
+
+/* 日期单元格样式 - 移除过渡效果以提高更新流畅度 */
+.day-cell {
+    background-color: var(--background-primary);
+    cursor: pointer;
+}
+
+/* 任务列表样式 - 移除过渡效果以提高更新流畅度 */
 .task-list-container {
     margin-top: 1.5em;
     padding-top: 1em;
     border-top: 1px solid var(--divider-color);
+}
+
+.task-item {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 0.5em;
+    padding: 0.3em;
+    border-radius: 0.3em;
+    background-color: var(--background-secondary);
 }
 
 .task-list-header {
@@ -660,4 +708,52 @@
     margin-bottom: 15px;
     font-size: 16px;
     color: var(--text-normal);
+}
+
+/* 路径自动完成样式 */
+.path-autocomplete-dropdown {
+    position: absolute;
+    z-index: 1000;
+    background-color: var(--background-primary);
+    border: 1px solid var(--divider-color);
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    max-height: 200px;
+    overflow-y: auto;
+    width: calc(100% - 2px);
+    top: 100%; /* 显示在输入框下方 */
+    left: 0;
+    margin-top: 4px; /* 添加一点间距，避免紧贴输入框 */
+}
+
+.path-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text-normal);
+    border-bottom: 1px solid var(--divider-color);
+    transition: background-color 0.2s ease;
+    text-align: left; /* 明确设置左对齐 */
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.path-item:last-child {
+    border-bottom: none;
+}
+
+.path-item:hover,
+.path-item.active {
+    background-color: var(--interactive-hover);
+}
+
+.path-item strong {
+    color: var(--interactive-accent);
+    font-weight: bold;
+}
+
+/* 确保设置项容器是相对定位，以便下拉列表正确定位 */
+.setting-item-control {
+    position: relative;
 }
