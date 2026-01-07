@@ -3,7 +3,7 @@
 /* 日历样式 */
 .calendar-view {
     padding: 0.3em;
-    background-color: var(--background-primary);
+    background-color: var(--background-secondary);
     color: var(--text-normal);
     font-size: clamp(0.45em, 1.8vw, 0.75em);
     width: 100%;
@@ -162,6 +162,7 @@
 
 /* 年视图样式 */
 .year-view-container {
+    background-color: transparent;
     display: flex;
     flex-direction: column;
     gap: 0.3em;
@@ -176,7 +177,7 @@
     gap: 0.5em;
     padding: 0.3em;
     border-radius: 0.3em;
-    background-color: var(--background-secondary);
+    background-color: transparent;
     width: 100%;
     box-sizing: border-box;
     min-height: 2.5em;
@@ -193,10 +194,11 @@
 }
 
 .quarter-header.selected {
-    background-color: #9b59b6;
-    color: white;
-    padding: 0.2em 0.5em;
-    border-radius: 4px;
+    background-color: var(--interactive-accent);
+    color: var(--text-on-accent); 
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius-s, 4px);  /* 如果 --radius-s 未定义，使用 4px */
+    transition: background-color 0.2s, color 0.2s;
 }
 
 .quarter-months {
@@ -213,9 +215,9 @@
     min-width: calc(33.333% - 0.3em);
     max-width: calc(33.333% - 0.3em);
     padding: 0.3em;
-    background-color: var(--background-primary);
     border: 1px solid var(--divider-color);
     border-radius: 0.3em;
+    background-color: transparent;
     text-align: center;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -231,12 +233,6 @@
     background-color: var(--interactive-hover);
 }
 
-.selected-month {
-    background-color: var(--interactive-accent) !important;
-    color: var(--text-on-accent);
-    border-color: var(--interactive-accent);
-}
-
 .month-header {
     font-weight: normal;
     font-size: 0.9em;
@@ -245,9 +241,11 @@
 }
 
 .month-container.selected {
-    background-color: #9b59b6 !important;
-    color: white !important;
-    border-color: #9b59b6 !important;
+    background-color: var(--interactive-accent);
+    color: var(--text-on-accent); 
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius-s, 4px);  /* 如果 --radius-s 未定义，使用 4px */
+    transition: background-color 0.2s, color 0.2s;
 }
 
 .month-indicators {
@@ -261,19 +259,8 @@
     background-color: var(--interactive-hover);
 }
 
-.current-month-year {
-    font-size: 1.2em;
-    font-weight: bold;
-    color: var(--text-normal);
-    text-align: center;
-    flex: 1;
-    margin: 0 1em;
-}
 
-.calendar-info-bar {
-    display: none;
-}
-
+/* 日历表格样式 */
 .calendar-table {
     width: 100%;
     border-collapse: collapse;
@@ -281,41 +268,39 @@
     table-layout: fixed;
 }
 
+/* 统一列宽 */
+.calendar-table th,
+.calendar-table td {
+    width: calc(100% / 8);
+    min-width: 2em;
+    box-sizing: border-box;
+}
+
+/* 表头样式 */
 .calendar-table th {
-    padding: 0.2em 0.2em;
+    padding: 0;
     text-align: center;
     font-weight: bold;
     color: var(--text-normal);
-    border-bottom: 1px solid var(--divider-color);
-    font-size: 0.7em;
-    width: calc(100% / 8);
-    min-width: 2em;
+    font-size: 0.8em;
     height: 1.5em;
-    box-sizing: border-box;
-}
-
-/* 确保表头行高度固定且较小 */
-.calendar-table thead tr {
-    height: 1.5em;
+    line-height: 1.5em;
+    user-select: none;
 }
 
 .calendar-table th:first-child {
-    background-color: var(--background-secondary);
     color: var(--text-muted);
 }
 
-.calendar-table td {
-    padding: 0.2em 0.1em;
-    text-align: center;
-    vertical-align: top;
-    min-width: 0;
-    height: 3em;
-    border: 1px solid var(--divider-color);
-    position: relative;
-    aspect-ratio: 1.1;
-    width: calc(100% / 8);
-    box-sizing: border-box;
-    overflow: hidden;
+/* 表头（thead 中的 th）不加顶线 */
+.calendar-table thead th {
+    border-top: none;
+}
+
+/* 所有 tbody 中的单元格加顶线 → 实现“每行顶部有线” */
+.calendar-table tbody th,
+.calendar-table tbody td {
+    border-top: 1px solid var(--table-border-color, var(--background-modifier-border));
 }
 
 /* 确保日历行高度完全固定，避免切换时闪烁 */
@@ -323,24 +308,31 @@
     height: 3em;
 }
 
-/* 确保周数单元格和日期单元格高度一致 */
-.week-number-cell {
-    height: 3em;
-    overflow: hidden;
+/* 确保表头行高度固定且较小 */
+.calendar-table thead tr {
+    height: 1.5em;
 }
 
+/* 单元格通用样式 */
+.week-number-cell,
 .day-cell {
+    width: calc(100% / 8);
     height: 3em;
-    overflow: hidden;
-}
-
-.week-number-cell {
-    background-color: #f0f0f0;
+    padding: 0; /* 由内部元素控制间距 */
+    box-sizing: border-box;
+    
     cursor: pointer;
-    transition: all 0.2s ease;
+    background-color: transparent;
+    transition: background-color 0.2s ease;
+    overflow: hidden;
+    
+    text-align: center; /* 虽然 flex 通常不需要，但对纯文本子元素仍有用 */
+    vertical-align: top;
 }
 
-
+.week-number-cell.selected-week {
+    color: var(--text-normal);
+}
 
 .week-indicators {
     display: flex;
@@ -350,30 +342,21 @@
     line-height: 1;
 }
 
-.day-cell {
-    background-color: var(--background-primary);
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
 .day-cell:hover,
 .week-number-cell:hover {
-    background-color: var(--background-secondary);
+    background-color: var(--background-modifier-hover);
 }
 
-.day-cell.selected-day {
-    background-color: var(--background-secondary);
+.day-cell.selected-day,
+.week-number-cell.selected-week {
     color: var(--text-normal);
-    border-color: var(--interactive-accent);
+    background-color: var(--background-modifier-hover);
 }
 
 .day-cell.empty-day {
-    background-color: var(--background-primary);
     cursor: default;
     opacity: 0.5;
 }
-
-
 
 .date-container {
     display: flex;
@@ -385,7 +368,8 @@
     min-height: 1.2em;
 }
 
-.day-number {
+.day-number,
+.week-number.day-number {
     font-size: 0.9em;
     font-weight: normal;
     color: var(--text-normal);
@@ -395,22 +379,39 @@
     text-align: center;
 }
 
+.day-number.holiday-date {
+    color: #cc0000;
+}
+
+.day-number.workday-date {
+    color: #4a90e2;
+}
+
 .holiday-status {
-    font-size: 0.5em;
-    font-weight: bold;
-    color: var(--background-primary);
-    background-color: var(--text-accent);
-    width: 1.5em;
-    height: 1.5em;
-    border-radius: 50%;
+    /* 尺寸与布局 */
+    min-width: 1.4em;
+    min-height: 1.4em;
+    padding: 0.1em;
+    border-radius: 1em; /* 圆角足够形成圆形 */
+    
+    /* 内容居中 */
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    margin-left: 0.2em;
-    z-index: 2;
-    padding: 0;
+    
+    /* 文字 */
+    font-size: 0.65em;
+    font-weight: bold;
     line-height: 1;
-    text-align: center;
+    white-space: nowrap;
+    text-align: center; 
+    /* 颜色 */
+    color: white;
+    background-color: #d00; /* 或 var(--interactive-accent) */
+    /* 防溢出 */
+    overflow: hidden;   
+    /* 交互（可选） */
+    cursor: default;
 }
 
 .lunar-date {
@@ -424,7 +425,6 @@
 /* 其他月份日期样式 */
 .day-cell.other-month {
     opacity: 0.4;
-    background-color: var(--background-primary-alt);
 }
 
 .day-cell.other-month .day-number {
@@ -464,22 +464,7 @@
     color: #b700ff;
 }
 
-/* 处理当天有多个节日的情况 */
-.lunar-date.multi-festival {
-    display: flex;
-    flex-direction: column;
-    gap: 0.05em;
-}
 
-.lunar-date.multi-festival > span {
-    color: #4a90e2;
-    font-weight: bold;
-    font-size: 0.5em;
-}
-
-.lunar-date.multi-festival > span:nth-child(even) {
-    color: #9b59b6;
-}
 
 .day-indicators {
     display: flex;
@@ -518,12 +503,6 @@
     table-layout: fixed;
 }
 
-/* 日期单元格样式 - 移除过渡效果以提高更新流畅度 */
-.day-cell {
-    background-color: var(--background-primary);
-    cursor: pointer;
-}
-
 /* 任务列表样式 - 移除过渡效果以提高更新流畅度 */
 .task-list-container {
     margin-top: 1.5em;
@@ -537,7 +516,7 @@
     margin-bottom: 0.5em;
     padding: 0.3em;
     border-radius: 0.3em;
-    background-color: var(--background-secondary);
+    background-color: transparent;
 }
 
 .task-list-header {
@@ -559,7 +538,7 @@
 }
 
 .filter-btn {
-    background-color: var(--background-primary);
+    background-color: transparent;
     border: 1px solid var(--interactive-border);
     border-radius: 0.3em;
     color: var(--text-normal);
@@ -591,7 +570,7 @@
     margin-bottom: 0.5em;
     padding: 0.3em;
     border-radius: 0.3em;
-    background-color: var(--background-secondary);
+    background-color: transparent;
 }
 
 .task-content {
@@ -635,8 +614,7 @@
     line-height: 1.3;
 }
 
-.task-text:hover,
-.task-text.expanded {
+.task-text:hover {
     -webkit-line-clamp: unset;
     overflow: visible;
     white-space: normal;
@@ -673,7 +651,7 @@
     padding: 0.3em 0.5em;
     border: 1px solid var(--interactive-border);
     border-radius: 0.3em;
-    background-color: var(--background-primary);
+    background-color: transparent;
     color: var(--text-normal);
     font-size: 0.85em;
 }
@@ -682,7 +660,7 @@
     padding: 0.3em 0.6em;
     border: 1px solid var(--interactive-border);
     border-radius: 0.3em;
-    background-color: var(--background-primary);
+    background-color: transparent;
     color: var(--text-normal);
     cursor: pointer;
     font-size: 0.85em;
@@ -714,7 +692,7 @@
 .path-autocomplete-dropdown {
     position: absolute;
     z-index: 1000;
-    background-color: var(--background-primary);
+    background-color: transparent;
     border: 1px solid var(--divider-color);
     border-radius: 4px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
