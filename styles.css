@@ -1,0 +1,663 @@
+/* JiuJiu Calendar Plugin Styles */
+
+/* 日历样式 */
+.calendar-view {
+    padding: 0.3em;
+    background-color: var(--background-primary);
+    color: var(--text-normal);
+    font-size: clamp(0.45em, 1.8vw, 0.75em);
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    overflow: hidden;
+    flex: 1;
+}
+
+.calendar-header {
+    display: grid;
+    grid-template-columns: auto auto;
+    grid-template-rows: auto auto;
+    gap: 0.2em 2em;
+    margin-bottom: 0.5em;
+    padding: 0.25em 0.5em;
+    border-bottom: 1px solid var(--divider-color);
+    justify-items: center;
+    align-items: center;
+    justify-content: center;
+    width: fit-content;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* 第一行第一列：年导航 */
+.calendar-header-block-year {
+    grid-column: 1;
+    grid-row: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 2px;
+    text-align: center;
+    min-width: 6em;
+    border-radius: 4px;
+}
+
+/* 第一行第二列：季度导航 */
+.calendar-header-block-quarter {
+    grid-column: 2;
+    grid-row: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 2px;
+    text-align: center;
+    min-width: 6em;
+    border-radius: 4px;
+}
+
+/* 第二行第一列：月导航 */
+.calendar-header-block-month {
+    grid-column: 1;
+    grid-row: 2;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 2px;
+    text-align: center;
+    min-width: 6em;
+    border-radius: 4px;
+}
+
+/* 第二行第二列：今 + 月/年切换 */
+.calendar-header-block-label {
+    grid-column: 2;
+    grid-row: 2;
+    display: flex;
+    justify-content: center;
+    gap: 0.3em;
+    align-items: center;
+    min-width: 6em;
+}
+
+/* 移除行容器的默认样式 */
+.calendar-header-row {
+    display: contents;
+}
+
+.calendar-header-body {
+    display: flex;
+    align-items: center;
+}
+
+.calendar-header-content {
+    border-radius: 4px;
+    width: 3.5em;
+    padding: 0.2em 0;
+    color: var(--text-normal);
+    text-align: center;
+    font-weight: bold;
+    font-size: 1em;
+}
+
+.calendar-header-content-quarter {
+    border-radius: 4px;
+    width: auto;
+    padding: 0.2em 0.5em;
+    color: var(--text-normal);
+    text-align: center;
+    font-weight: bold;
+    font-size: 1em;
+    white-space: nowrap;
+}
+
+.nav-btn {
+    font-size: 1.2em;
+    cursor: pointer;
+    color: var(--text-normal);
+    padding: 0.1em 0.3em;
+    border-radius: 0.2em;
+    visibility: hidden;
+}
+
+.calendar-header-body:hover .nav-btn {
+    visibility: visible;
+}
+
+.nav-btn:hover {
+    background-color: var(--interactive-hover);
+}
+
+.today-label {
+    width: 1.8em;
+    height: 1.8em;
+    line-height: 1.8em;
+    text-align: center;
+    border-radius: 50%;
+    font-weight: bold;
+    font-size: 0.9em;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.today-unselected {
+    color: var(--text-normal);
+    background-color: transparent;
+}
+
+.today-unselected:hover {
+    background-color: var(--interactive-hover);
+}
+
+.today-selected {
+    color: white;
+    background-color: var(--interactive-accent);
+}
+
+.today-selected:hover {
+    background-color: var(--interactive-accent-hover);
+}
+
+/* 年视图样式 */
+.year-view-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3em;
+    padding: 0.2em;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.quarter-container {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    padding: 0.3em;
+    border-radius: 0.3em;
+    background-color: var(--background-secondary);
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 2.5em;
+}
+
+.quarter-header {
+    font-weight: normal;
+    font-size: 0.9em;
+    text-align: center;
+    width: 5em;
+    flex-shrink: 0;
+    line-height: 1.2;
+    cursor: pointer;
+}
+
+.quarter-header.selected {
+    background-color: #9b59b6;
+    color: white;
+    padding: 0.2em 0.5em;
+    border-radius: 4px;
+}
+
+.quarter-months {
+    display: flex;
+    gap: 0.3em;
+    justify-content: flex-start;
+    align-items: center;
+    flex: 1;
+    flex-wrap: wrap;
+}
+
+.month-container {
+    flex: 1;
+    min-width: calc(33.333% - 0.3em);
+    max-width: calc(33.333% - 0.3em);
+    padding: 0.3em;
+    background-color: var(--background-primary);
+    border: 1px solid var(--divider-color);
+    border-radius: 0.3em;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-height: 2em;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+}
+
+.month-container:hover {
+    background-color: var(--interactive-hover);
+}
+
+.selected-month {
+    background-color: var(--interactive-accent) !important;
+    color: var(--text-on-accent);
+    border-color: var(--interactive-accent);
+}
+
+.month-header {
+    font-weight: normal;
+    font-size: 0.9em;
+    margin-bottom: 0.2em;
+    cursor: pointer;
+}
+
+.month-container.selected {
+    background-color: #9b59b6 !important;
+    color: white !important;
+    border-color: #9b59b6 !important;
+}
+
+.month-indicators {
+    display: flex;
+    gap: 0.15em;
+    justify-content: center;
+    align-items: center;
+}
+
+.calendar-header button:hover {
+    background-color: var(--interactive-hover);
+}
+
+.current-month-year {
+    font-size: 1.2em;
+    font-weight: bold;
+    color: var(--text-normal);
+    text-align: center;
+    flex: 1;
+    margin: 0 1em;
+}
+
+.calendar-info-bar {
+    display: none;
+}
+
+.calendar-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 0.75em;
+    table-layout: fixed;
+}
+
+.calendar-table th {
+    padding: 0.4em 0.2em;
+    text-align: center;
+    font-weight: bold;
+    color: var(--text-normal);
+    border-bottom: 1px solid var(--divider-color);
+    font-size: 0.7em;
+    width: calc(100% / 8);
+    min-width: 2em;
+}
+
+.calendar-table th:first-child {
+    background-color: var(--background-secondary);
+    color: var(--text-muted);
+}
+
+.calendar-table td {
+    padding: 0.2em 0.1em;
+    text-align: center;
+    vertical-align: top;
+    min-width: 0;
+    height: auto;
+    min-height: 0;
+    border: 1px solid var(--divider-color);
+    position: relative;
+    aspect-ratio: 1.1;
+    width: calc(100% / 8);
+}
+
+.week-number-cell {
+    background-color: #f0f0f0;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+
+
+.week-indicators {
+    display: flex;
+    justify-content: center;
+    gap: 0.15em;
+    margin-top: 0;
+    line-height: 1;
+}
+
+.day-cell {
+    background-color: var(--background-primary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.day-cell:hover,
+.week-number-cell:hover {
+    background-color: var(--background-secondary);
+}
+
+.day-cell.selected-day {
+    background-color: var(--background-secondary);
+    color: var(--text-normal);
+    border-color: var(--interactive-accent);
+}
+
+.day-cell.empty-day {
+    background-color: var(--background-primary);
+    cursor: default;
+    opacity: 0.5;
+}
+
+
+
+.date-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0.2em;
+    position: relative;
+    width: 100%;
+    min-height: 1.2em;
+}
+
+.day-number {
+    font-size: 0.9em;
+    font-weight: normal;
+    color: var(--text-normal);
+    display: inline-block;
+    position: relative;
+    z-index: 1;
+    text-align: center;
+}
+
+.holiday-status {
+    font-size: 0.5em;
+    font-weight: bold;
+    color: var(--background-primary);
+    background-color: var(--text-accent);
+    width: 1.5em;
+    height: 1.5em;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 0.2em;
+    z-index: 2;
+    padding: 0;
+    line-height: 1;
+    text-align: center;
+}
+
+.lunar-date {
+    font-size: 1.1em;
+    color: var(--text-muted);
+    margin-bottom: 0.2em;
+    display: block;
+    line-height: 1.3;
+}
+
+/* 其他月份日期样式 */
+.day-cell.other-month {
+    opacity: 0.4;
+    background-color: var(--background-primary-alt);
+}
+
+.day-cell.other-month .day-number {
+    color: var(--text-faint);
+}
+
+.day-cell.other-month .lunar-date {
+    color: var(--text-faint);
+}
+
+.holiday-status.workday {
+    background-color: #4a90e2;
+    color: white;
+}
+
+.lunar-date {
+    font-size: 0.55em;
+    color: var(--text-muted);
+    margin-bottom: 0.2em;
+    display: block;
+    line-height: 1.3;
+}
+
+/* 节日和节气样式 - 蓝色加粗文字，蓝紫相间 */
+.lunar-date.lunar-festival,
+.lunar-date.lunar-solarTerm {
+    color: #4a90e2;
+    font-weight: bold;
+    transition: all 0.2s ease;
+}
+
+/* 相邻节日的淡紫色样式 */
+.day-cell:nth-child(7n+6) ~ .day-cell:nth-child(7n+7) .lunar-date.lunar-festival,
+.day-cell:nth-child(7n+6) ~ .day-cell:nth-child(7n+7) .lunar-date.lunar-solarTerm,
+.day-cell + .day-cell .lunar-date.lunar-festival,
+.day-cell + .day-cell .lunar-date.lunar-solarTerm {
+    color: #b700ff;
+}
+
+/* 处理当天有多个节日的情况 */
+.lunar-date.multi-festival {
+    display: flex;
+    flex-direction: column;
+    gap: 0.05em;
+}
+
+.lunar-date.multi-festival > span {
+    color: #4a90e2;
+    font-weight: bold;
+    font-size: 0.5em;
+}
+
+.lunar-date.multi-festival > span:nth-child(even) {
+    color: #9b59b6;
+}
+
+.day-indicators {
+    display: flex;
+    justify-content: center;
+    gap: 0.15em;
+    margin-top: 0.2em;
+}
+
+.indicator-row {
+    display: flex;
+    justify-content: center;
+    gap: 0.15em;
+}
+
+.indicator-dot {
+    width: 0.35em;
+    height: 0.35em;
+    border-radius: 50%;
+    background-color: var(--interactive-accent);
+}
+
+.indicator-dot.solid-dot {
+    background-color: var(--interactive-accent);
+}
+
+.indicator-dot.hollow-dot {
+    background-color: transparent;
+    border: 1px solid var(--interactive-accent);
+}
+
+.task-list-container {
+    margin-top: 1.5em;
+    padding-top: 1em;
+    border-top: 1px solid var(--divider-color);
+}
+
+.task-list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1em;
+}
+
+.task-list-header h3 {
+    margin: 0;
+    font-size: 1em;
+    color: var(--text-normal);
+}
+
+.filter-buttons {
+    display: flex;
+    gap: 0.5em;
+}
+
+.filter-btn {
+    background-color: var(--background-primary);
+    border: 1px solid var(--interactive-border);
+    border-radius: 0.3em;
+    color: var(--text-normal);
+    cursor: pointer;
+    padding: 0.3em 0.8em;
+    font-size: 0.8em;
+    transition: all 0.2s ease;
+}
+
+.filter-btn:hover {
+    background-color: var(--interactive-hover);
+}
+
+.filter-btn.active {
+    background-color: var(--interactive-accent);
+    color: var(--text-on-accent);
+    border-color: var(--interactive-accent);
+}
+
+.task-list {
+    font-size: 0.9em;
+    color: var(--text-normal);
+    min-height: 6em;
+}
+
+.task-item {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 0.5em;
+    padding: 0.3em;
+    border-radius: 0.3em;
+    background-color: var(--background-secondary);
+}
+
+.task-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2em;
+}
+
+.task-due-date {
+    font-size: 0.8em;
+    color: var(--text-muted);
+    margin-top: 0.1em;
+}
+
+.task-due-date.completed {
+    text-decoration: line-through;
+    color: var(--text-muted);
+}
+
+.task-item:hover {
+    background-color: var(--background-hover);
+}
+
+.task-checkbox {
+    margin-right: 0.5em;
+    cursor: pointer;
+}
+
+.task-text {
+    flex: 1;
+    font-size: 0.85em;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+    word-wrap: break-word;
+    word-break: break-all;
+    line-height: 1.3;
+}
+
+.task-text:hover,
+.task-text.expanded {
+    -webkit-line-clamp: unset;
+    overflow: visible;
+    white-space: normal;
+}
+
+.task-text.completed {
+    text-decoration: line-through;
+    color: var(--text-muted);
+}
+
+.task-delete {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0.1em 0.3em;
+    border-radius: 0.2em;
+    font-size: 0.8em;
+}
+
+.task-delete:hover {
+    color: var(--text-error);
+    background-color: var(--background-hover);
+}
+
+.add-task-container {
+    display: flex;
+    margin-top: 1em;
+    gap: 0.5em;
+}
+
+.add-task-input {
+    flex: 1;
+    padding: 0.3em 0.5em;
+    border: 1px solid var(--interactive-border);
+    border-radius: 0.3em;
+    background-color: var(--background-primary);
+    color: var(--text-normal);
+    font-size: 0.85em;
+}
+
+.add-task-button {
+    padding: 0.3em 0.6em;
+    border: 1px solid var(--interactive-border);
+    border-radius: 0.3em;
+    background-color: var(--background-primary);
+    color: var(--text-normal);
+    cursor: pointer;
+    font-size: 0.85em;
+    transition: all 0.2s ease;
+}
+
+.add-task-button:hover {
+    background-color: var(--interactive-hover);
+}
+
+.setting-section {
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--divider-color);
+}
+
+.setting-section:last-child {
+    border-bottom: none;
+}
+
+.setting-section h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 16px;
+    color: var(--text-normal);
+}

@@ -1,0 +1,11 @@
+{
+	"id": "jiujiu-obsidian-calendar",
+	"name": "JiuJiu Calendar",
+	"version": "1.0.0",
+	"minAppVersion": "0.15.0",
+	"description": "A comprehensive calendar plugin with lunar calendar, holidays, and note management features.",
+	"author": "JiuJiu",
+	"authorUrl": "",
+	"fundingUrl": "",
+	"isDesktopOnly": false
+}

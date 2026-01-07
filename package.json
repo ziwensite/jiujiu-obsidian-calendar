@@ -1,0 +1,32 @@
+{
+	"name": "jiujiu-obsidian-calendar",
+	"version": "1.0.0",
+	"description": "A comprehensive calendar plugin with lunar calendar, holidays, and note management features.",
+	"main": "main.js",
+	"type": "module",
+	"scripts": {
+		"dev": "node esbuild.config.mjs",
+		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+		"version": "node version-bump.mjs && git add manifest.json versions.json",
+		"lint": "eslint ."
+	},
+	"keywords": [],
+	"license": "0-BSD",
+	"devDependencies": {
+		"@eslint/js": "9.30.1",
+		"@types/node": "^16.11.6",
+		"esbuild": "0.25.5",
+		"eslint-plugin-obsidianmd": "0.1.9",
+		"globals": "14.0.0",
+		"jiti": "2.6.1",
+		"tslib": "2.4.0",
+		"typescript": "^5.8.3",
+		"typescript-eslint": "8.35.1"
+	},
+	"dependencies": {
+		"dayjs": "^1.11.19",
+		"dayjs-ext": "^2.2.0",
+		"lunar-typescript": "^1.8.6",
+		"obsidian": "latest"
+	}
+}
