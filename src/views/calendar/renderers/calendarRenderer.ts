@@ -13,20 +13,20 @@ export class CalendarRenderer {
     /**
      * 构建日历结构
      */
-    async buildCalendarStructure(container: HTMLElement, currentDate: Date, viewType: 'month' | 'year') {
+    async buildCalendarStructure(container: HTMLElement, currentDate: Date, viewType: 'month' | 'year', navigationType: 'month' | 'year' = 'month') {
         if (viewType === 'month') {
-            await this.buildMonthView(container, currentDate);
+            await this.buildMonthView(container, currentDate, navigationType);
         } else {
-            this.buildYearView(container, currentDate);
+            this.buildYearView(container, currentDate, navigationType);
         }
     }
 
     /**
      * 构建月视图
      */
-    private async buildMonthView(container: HTMLElement, currentDate: Date) {
+    private async buildMonthView(container: HTMLElement, currentDate: Date, navigationType: 'month' | 'year' = 'month') {
         // 日历头部
-        this.buildCalendarHeader(container, currentDate);
+        this.buildCalendarHeader(container, currentDate, navigationType);
 
         // 日历表格
         const calendarTable = container.createEl("table", {cls: "calendar-table"});
@@ -41,7 +41,10 @@ export class CalendarRenderer {
     /**
      * 构建年视图
      */
-    private buildYearView(container: HTMLElement, currentDate: Date) {
+    private buildYearView(container: HTMLElement, currentDate: Date, navigationType: 'month' | 'year' = 'year') {
+        // 日历头部
+        this.buildCalendarHeader(container, currentDate, navigationType);
+
         const yearViewContainer = container.createEl("div", {cls: "year-view-container"});
 
         // 季度循环（Q1到Q4）
@@ -81,26 +84,30 @@ export class CalendarRenderer {
     /**
      * 构建日历头部
      */
-    private buildCalendarHeader(container: HTMLElement, currentDate: Date) {
+    private buildCalendarHeader(container: HTMLElement, currentDate: Date, navigationType: 'month' | 'year' = 'month') {
         const header = container.createEl("div", {cls: "calendar-header"});
-
-        // 第一行：年和季度导航
-        const topRow = header.createEl("div", {cls: "calendar-header-row"});
-
-        // 年份导航
-        this.buildYearNavigation(topRow, currentDate);
-
-        // 季度导航
-        this.buildQuarterNavigation(topRow, currentDate);
-
-        // 第二行：月和今日按钮
-        const bottomRow = header.createEl("div", {cls: "calendar-header-row"});
-
-        // 月份导航
-        this.buildMonthNavigation(bottomRow, currentDate);
-
-        // 今日和视图切换按钮
-        this.buildLabelBlock(bottomRow);
+        
+        // 单行：3等分布局，从左到右排列：今按钮、月份导航、年按钮
+        const singleRow = header.createEl("div", {cls: "calendar-header-row"});
+        
+        // 左侧：今按钮
+        singleRow.createEl("div", { 
+            text: "今",
+            cls: "today-label today-unselected"
+        });
+        
+        // 中间：根据导航类型渲染不同的导航
+        if (navigationType === 'month') {
+            this.buildMonthNavigation(singleRow, currentDate);
+        } else {
+            this.buildYearNavigation(singleRow, currentDate);
+        }
+        
+        // 右侧：年按钮
+        singleRow.createEl("div", { 
+            text: "年",
+            cls: "today-label year-label today-unselected"
+        });
     }
 
     /**
@@ -120,22 +127,6 @@ export class CalendarRenderer {
         yearNavBody.createEl("span", {text: "›", cls: "nav-btn next-btn"});
     }
 
-    /**
-     * 构建季度导航
-     */
-    private buildQuarterNavigation(container: HTMLElement, currentDate: Date) {
-        const quarterNav = container.createEl("div", {cls: "calendar-header-block-quarter"});
-        const quarterNavBody = quarterNav.createEl("div", {cls: "calendar-header-body"});
-
-        quarterNavBody.createEl("span", {text: "‹", cls: "nav-btn prev-btn"});
-        
-        const quarterContent = quarterNavBody.createEl("div", {cls: "calendar-header-content-quarter"});
-        quarterContent.createEl("span", { 
-            text: `${Math.floor(currentDate.getMonth() / 3) + 1}季度`,
-        });
-        
-        quarterNavBody.createEl("span", {text: "›", cls: "nav-btn next-btn"});
-    }
 
     /**
      * 构建月份导航
@@ -477,14 +468,6 @@ export class CalendarRenderer {
             }
         }
         
-        // 更新季度显示
-        const quarterContent = container.querySelector('.calendar-header-block-quarter .calendar-header-content-quarter');
-        if (quarterContent) {
-            const quarterSpan = quarterContent.querySelector('span');
-            if (quarterSpan) {
-                quarterSpan.textContent = `${Math.floor(currentDate.getMonth() / 3) + 1}季度`;
-            }
-        }
         
         // 更新月份显示
         const monthContent = container.querySelector('.calendar-header-block-month .calendar-header-content');

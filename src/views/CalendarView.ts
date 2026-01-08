@@ -18,6 +18,8 @@ export class CalendarView extends ItemView {
     private lastRenderedMonth: number = -1;
     private lastRenderedViewType: 'month' | 'year' = 'month';
     private lastRenderedRows: number = -1;
+    private lastRenderedNavigationType: 'month' | 'year' = 'month';
+    private navigationType: 'month' | 'year' = 'month'; // 导航类型：month 或 year
     
     // 模块化组件
     private calendarRenderer: CalendarRenderer;
@@ -100,11 +102,12 @@ export class CalendarView extends ItemView {
         const currentRows = Math.ceil((prevMonthDaysToShow + daysInMonth) / 7);
 
         // 检查是否需要完全重建日历结构
-        // 只有当年/月/视图类型变化，或者行数变化时，才完全重建
+        // 只有当年/月/视图类型/导航类型变化，或者行数变化时，才完全重建
         const needsFullRebuild = 
             this.lastRenderedYear !== currentYear || 
             this.lastRenderedMonth !== currentMonth ||
             this.lastRenderedViewType !== this.viewType ||
+            this.lastRenderedNavigationType !== this.navigationType ||
             this.lastRenderedRows !== currentRows;
 
         if (needsFullRebuild) {
@@ -113,6 +116,7 @@ export class CalendarView extends ItemView {
             this.lastRenderedYear = currentYear;
             this.lastRenderedMonth = currentMonth;
             this.lastRenderedViewType = this.viewType;
+            this.lastRenderedNavigationType = this.navigationType;
             this.lastRenderedRows = currentRows;
         } else {
             // 行数没有变化，只更新日历内容，不整体刷新
@@ -132,7 +136,37 @@ export class CalendarView extends ItemView {
             
             // 更新所有日期单元格的完整内容
             await this.updateMonthCalendarContent();
+        } else {
+            // 年视图也需要更新日历头部
+            this.updateCalendarHeader();
         }
+    }
+
+    /**
+     * 更新所有筛选按钮的状态
+     */
+    private updateFilterButtonsStatus() {
+        // 获取所有筛选按钮
+        const filterButtons = this.containerEl.querySelectorAll(".filter-buttons");
+        filterButtons.forEach(container => {
+            // 更新待办按钮
+            const todoBtn = container.querySelector("button:nth-child(1)");
+            if (todoBtn) {
+                todoBtn.className = `filter-btn ${this.taskStatusFilter === 'todo' ? 'active' : ''}`;
+            }
+            
+            // 更新已办按钮
+            const doneBtn = container.querySelector("button:nth-child(2)");
+            if (doneBtn) {
+                doneBtn.className = `filter-btn ${this.taskStatusFilter === 'done' ? 'active' : ''}`;
+            }
+            
+            // 更新所有按钮
+            const allBtn = container.querySelector("button:nth-child(3)");
+            if (allBtn) {
+                allBtn.className = `filter-btn ${this.taskStatusFilter === 'all' ? 'active' : ''}`;
+            }
+        });
     }
 
     /**
@@ -275,7 +309,7 @@ export class CalendarView extends ItemView {
 
     private async buildCalendarStructure(container: HTMLElement) {
         // 使用 calendarRenderer 构建日历结构
-        await this.calendarRenderer.buildCalendarStructure(container, this.currentDate, this.viewType);
+        await this.calendarRenderer.buildCalendarStructure(container, this.currentDate, this.viewType, this.navigationType);
         
         // 添加导航按钮事件监听器
         this.addNavigationEventListeners();
@@ -298,6 +332,8 @@ export class CalendarView extends ItemView {
         todoBtn.className = `filter-btn ${this.taskStatusFilter === 'todo' ? 'active' : ''}`;
         todoBtn.addEventListener("click", async () => {
             this.taskStatusFilter = 'todo';
+            // 直接更新所有筛选按钮的状态
+            this.updateFilterButtonsStatus();
             // 重新渲染日历
             await this.renderCalendar();
             // 如果已经有选中的日期，重新渲染任务列表
@@ -314,6 +350,8 @@ export class CalendarView extends ItemView {
         doneBtn.className = `filter-btn ${this.taskStatusFilter === 'done' ? 'active' : ''}`;
         doneBtn.addEventListener("click", async () => {
             this.taskStatusFilter = 'done';
+            // 直接更新所有筛选按钮的状态
+            this.updateFilterButtonsStatus();
             // 重新渲染日历
             await this.renderCalendar();
             // 如果已经有选中的日期，重新渲染任务列表
@@ -330,6 +368,8 @@ export class CalendarView extends ItemView {
         allBtn.className = `filter-btn ${this.taskStatusFilter === 'all' ? 'active' : ''}`;
         allBtn.addEventListener("click", async () => {
             this.taskStatusFilter = 'all';
+            // 直接更新所有筛选按钮的状态
+            this.updateFilterButtonsStatus();
             // 重新渲染日历
             await this.renderCalendar();
             // 如果已经有选中的日期，重新渲染任务列表
@@ -373,81 +413,7 @@ export class CalendarView extends ItemView {
      * 添加导航按钮事件监听器
      */
     private addNavigationEventListeners() {
-        // 年份导航按钮
-        const prevYearBtn = this.containerEl.querySelector(".calendar-header-block-year .prev-btn");
-        const nextYearBtn = this.containerEl.querySelector(".calendar-header-block-year .next-btn");
-        const yearContent = this.containerEl.querySelector(".calendar-header-block-year .calendar-header-content");
         
-        if (prevYearBtn) {
-            (prevYearBtn as HTMLElement).title = "上一年";
-            prevYearBtn.addEventListener("click", () => {
-                this.currentDate.setFullYear(this.currentDate.getFullYear() - 1);
-                this.renderCalendar();
-            });
-        }
-        
-        if (nextYearBtn) {
-            (nextYearBtn as HTMLElement).title = "下一年";
-            nextYearBtn.addEventListener("click", () => {
-                this.currentDate.setFullYear(this.currentDate.getFullYear() + 1);
-                this.renderCalendar();
-            });
-        }
-        
-        if (yearContent) {
-            yearContent.addEventListener("click", async () => {
-                // 显示当年所有任务
-                const year = this.currentDate.getFullYear();
-                const startDate = new Date(year, 0, 1);
-                const endDate = new Date(year, 11, 31);
-                await this.renderTaskListByDateRange(startDate, endDate);
-            });
-            yearContent.addEventListener("dblclick", async () => {
-                await this.handleYearDoubleClick();
-            });
-        }
-        
-        // 季度导航按钮
-        const prevQuarterBtn = this.containerEl.querySelector(".calendar-header-block-quarter .prev-btn");
-        const nextQuarterBtn = this.containerEl.querySelector(".calendar-header-block-quarter .next-btn");
-        const quarterContent = this.containerEl.querySelector(".calendar-header-block-quarter .calendar-header-content-quarter");
-        
-        if (prevQuarterBtn) {
-            (prevQuarterBtn as HTMLElement).title = "上一季";
-            prevQuarterBtn.addEventListener("click", () => {
-                const currentQuarter = Math.floor(this.currentDate.getMonth() / 3);
-                const targetMonth = currentQuarter * 3 - 3;
-                this.currentDate.setMonth(targetMonth);
-                this.renderCalendar();
-            });
-        }
-        
-        if (nextQuarterBtn) {
-            (nextQuarterBtn as HTMLElement).title = "下一季";
-            nextQuarterBtn.addEventListener("click", () => {
-                const currentQuarter = Math.floor(this.currentDate.getMonth() / 3);
-                const targetMonth = currentQuarter * 3 + 3;
-                this.currentDate.setMonth(targetMonth);
-                this.renderCalendar();
-            });
-        }
-        
-        if (quarterContent) {
-            quarterContent.addEventListener("click", async () => {
-                // 显示当季度所有任务
-                const year = this.currentDate.getFullYear();
-                const currentMonth = this.currentDate.getMonth();
-                const quarter = Math.floor(currentMonth / 3);
-                const quarterStartMonth = quarter * 3;
-                const quarterEndMonth = quarter * 3 + 2;
-                const startDate = new Date(year, quarterStartMonth, 1);
-                const endDate = new Date(year, quarterEndMonth + 1, 0);
-                await this.renderTaskListByDateRange(startDate, endDate);
-            });
-            quarterContent.addEventListener("dblclick", () => {
-                this.handleQuarterDoubleClick();
-            });
-        }
         
         // 月份导航按钮
         const prevMonthBtn = this.containerEl.querySelector(".calendar-header-block-month .prev-btn");
@@ -471,22 +437,70 @@ export class CalendarView extends ItemView {
         }
         
         if (monthContent) {
-            monthContent.addEventListener("click", async () => {
-                // 显示当月所有任务
-                const year = this.currentDate.getFullYear();
-                const month = this.currentDate.getMonth();
-                const startDate = new Date(year, month, 1);
-                const endDate = new Date(year, month + 1, 0);
-                await this.renderTaskListByDateRange(startDate, endDate);
+            monthContent.addEventListener("click", async (event) => {
+                // 如果是月视图，点击月份数字部分切换导航类型
+                if (this.viewType === 'month') {
+                    // 切换导航类型
+                    this.navigationType = 'year';
+                    this.renderCalendar();
+                } else {
+                    // 显示当月所有任务
+                    const year = this.currentDate.getFullYear();
+                    const month = this.currentDate.getMonth();
+                    const startDate = new Date(year, month, 1);
+                    const endDate = new Date(year, month + 1, 0);
+                    await this.renderTaskListByDateRange(startDate, endDate);
+                }
             });
             monthContent.addEventListener("dblclick", () => {
                 this.handleMonthDoubleClick();
             });
         }
         
-        // 今日和视图切换按钮
-        const todayBtn = this.containerEl.querySelector(".today-label:nth-child(1)");
-        const viewToggleBtn = this.containerEl.querySelector(".today-label:nth-child(2)");
+        // 年份导航按钮
+        const prevYearBtn = this.containerEl.querySelector(".calendar-header-block-year .prev-btn");
+        const nextYearBtn = this.containerEl.querySelector(".calendar-header-block-year .next-btn");
+        const yearContent = this.containerEl.querySelector(".calendar-header-block-year .calendar-header-content");
+        
+        if (prevYearBtn) {
+            (prevYearBtn as HTMLElement).title = "上一年";
+            prevYearBtn.addEventListener("click", () => {
+                this.currentDate.setFullYear(this.currentDate.getFullYear() - 1);
+                this.renderCalendar();
+            });
+        }
+        
+        if (nextYearBtn) {
+            (nextYearBtn as HTMLElement).title = "下一年";
+            nextYearBtn.addEventListener("click", () => {
+                this.currentDate.setFullYear(this.currentDate.getFullYear() + 1);
+                this.renderCalendar();
+            });
+        }
+        
+        if (yearContent) {
+            yearContent.addEventListener("click", async (event) => {
+                // 如果是月视图，点击年份数字部分切换导航类型
+                if (this.viewType === 'month') {
+                    // 切换导航类型
+                    this.navigationType = 'month';
+                    this.renderCalendar();
+                } else {
+                    // 显示当年所有任务
+                    const year = this.currentDate.getFullYear();
+                    const startDate = new Date(year, 0, 1);
+                    const endDate = new Date(year, 11, 31);
+                    await this.renderTaskListByDateRange(startDate, endDate);
+                }
+            });
+            yearContent.addEventListener("dblclick", async () => {
+                await this.handleYearDoubleClick();
+            });
+        }
+        
+        // 今日和年按钮
+        const todayBtn = this.containerEl.querySelector(".calendar-header .today-label:not(.year-label)");
+        const yearBtn = this.containerEl.querySelector(".calendar-header .year-label");
         
         if (todayBtn) {
             // 今日按钮：根据是否选中今天日期来决定样式
@@ -503,13 +517,15 @@ export class CalendarView extends ItemView {
             });
         }
         
-        if (viewToggleBtn) {
-            // 视图切换按钮：月/年视图切换
-            viewToggleBtn.textContent = this.viewType === 'month' ? "月" : "年";
-            viewToggleBtn.className = `today-label ${this.viewType === 'year' ? 'today-selected' : 'today-unselected'}`;
-            viewToggleBtn.addEventListener("click", () => {
+        if (yearBtn) {
+            // 年按钮：在月视图和年视图之间切换
+            yearBtn.textContent = this.viewType === 'month' ? "年" : "月";
+            yearBtn.className = `today-label year-label ${this.viewType === 'year' ? 'today-selected' : 'today-unselected'}`;
+            yearBtn.addEventListener("click", () => {
                 // 切换视图类型
                 this.viewType = this.viewType === 'month' ? 'year' : 'month';
+                // 同步更新导航类型：年视图默认使用年导航
+                this.navigationType = this.viewType === 'year' ? 'year' : 'month';
                 this.renderCalendar();
             });
         }
@@ -849,7 +865,7 @@ export class CalendarView extends ItemView {
         // 日历头部
         const header = container.createEl("div", {cls: "calendar-header"});
         
-        // 第一行：年和季度导航
+        // 第一行：年、月和今日按钮导航
         const topRow = header.createEl("div", {cls: "calendar-header-row"});
         
         // 年份导航
@@ -885,46 +901,6 @@ export class CalendarView extends ItemView {
             this.renderCalendar();
         });
         
-        // 季度导航
-        const quarterNav = topRow.createEl("div", {cls: "calendar-header-block-quarter"});
-        const quarterNavBody = quarterNav.createEl("div", {cls: "calendar-header-body"});
-        
-        const prevQuarterBtn = quarterNavBody.createEl("span", {text: "‹", cls: "nav-btn prev-btn"});
-        prevQuarterBtn.title = "上一季";
-        prevQuarterBtn.addEventListener("click", () => {
-            const currentQuarter = Math.floor(this.currentDate.getMonth() / 3);
-            const targetMonth = currentQuarter * 3 - 3;
-            this.currentDate.setMonth(targetMonth);
-            this.renderCalendar();
-        });
-        
-        const quarterContent = quarterNavBody.createEl("div", {cls: "calendar-header-content-quarter"});
-         quarterContent.createEl("span", { 
-             text: `${getQuarter(this.currentDate)}季度`,
-         });
-        quarterContent.addEventListener("click", async () => {
-            // 显示当季度所有任务
-            const year = this.currentDate.getFullYear();
-            const currentMonth = this.currentDate.getMonth();
-            const quarter = Math.floor(currentMonth / 3);
-            const quarterStartMonth = quarter * 3;
-            const quarterEndMonth = quarter * 3 + 2;
-            const startDate = new Date(year, quarterStartMonth, 1);
-            const endDate = new Date(year, quarterEndMonth + 1, 0);
-            await this.renderTaskListByDateRange(startDate, endDate);
-        });
-        quarterContent.addEventListener("dblclick", () => {
-            this.handleQuarterDoubleClick();
-        });
-        
-        const nextQuarterBtn = quarterNavBody.createEl("span", {text: "›", cls: "nav-btn next-btn"});
-        nextQuarterBtn.title = "下一季";
-        nextQuarterBtn.addEventListener("click", () => {
-            const currentQuarter = Math.floor(this.currentDate.getMonth() / 3);
-            const targetMonth = currentQuarter * 3 + 3;
-            this.currentDate.setMonth(targetMonth);
-            this.renderCalendar();
-        });
         
         // 第二行：月和今日按钮
         const bottomRow = header.createEl("div", {cls: "calendar-header-row"});
@@ -1426,6 +1402,8 @@ export class CalendarView extends ItemView {
         todoBtn.className = `filter-btn ${this.taskStatusFilter === 'todo' ? 'active' : ''}`;
         todoBtn.addEventListener("click", async () => {
             this.taskStatusFilter = 'todo';
+            // 直接更新所有筛选按钮的状态
+            this.updateFilterButtonsStatus();
             // 重新渲染日历
             await this.renderCalendar();
             // 如果已经有选中的日期，重新渲染任务列表
@@ -1442,6 +1420,8 @@ export class CalendarView extends ItemView {
         doneBtn.className = `filter-btn ${this.taskStatusFilter === 'done' ? 'active' : ''}`;
         doneBtn.addEventListener("click", async () => {
             this.taskStatusFilter = 'done';
+            // 直接更新所有筛选按钮的状态
+            this.updateFilterButtonsStatus();
             // 重新渲染日历
             await this.renderCalendar();
             // 如果已经有选中的日期，重新渲染任务列表
@@ -1458,6 +1438,8 @@ export class CalendarView extends ItemView {
         allBtn.className = `filter-btn ${this.taskStatusFilter === 'all' ? 'active' : ''}`;
         allBtn.addEventListener("click", async () => {
             this.taskStatusFilter = 'all';
+            // 直接更新所有筛选按钮的状态
+            this.updateFilterButtonsStatus();
             // 重新渲染日历
             await this.renderCalendar();
             // 如果已经有选中的日期，重新渲染任务列表

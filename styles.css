@@ -17,74 +17,52 @@
 }
 
 .calendar-header {
-    display: grid;
-    grid-template-columns: auto auto;
-    grid-template-rows: auto auto;
-    gap: 0.2em 2em;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1em;
     margin-bottom: 0.5em;
     padding: 0.25em 0.5em;
     border-bottom: 1px solid var(--divider-color);
-    justify-items: center;
-    align-items: center;
-    justify-content: center;
-    width: fit-content;
-    margin-left: auto;
-    margin-right: auto;
+    width: 100%;
+    box-sizing: border-box;
 }
 
-/* 第一行第一列：年导航 */
-.calendar-header-block-year {
-    grid-column: 1;
-    grid-row: 1;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 2px;
-    text-align: center;
-    min-width: 6em;
-    border-radius: 4px;
-}
-
-/* 第一行第二列：季度导航 */
-.calendar-header-block-quarter {
-    grid-column: 2;
-    grid-row: 1;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 2px;
-    text-align: center;
-    min-width: 6em;
-    border-radius: 4px;
-}
-
-/* 第二行第一列：月导航 */
-.calendar-header-block-month {
-    grid-column: 1;
-    grid-row: 2;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 2px;
-    text-align: center;
-    min-width: 6em;
-    border-radius: 4px;
-}
-
-/* 第二行第二列：今 + 月/年切换 */
-.calendar-header-block-label {
-    grid-column: 2;
-    grid-row: 2;
-    display: flex;
-    justify-content: center;
-    gap: 0.3em;
-    align-items: center;
-    min-width: 6em;
-}
-
-/* 移除行容器的默认样式 */
 .calendar-header-row {
-    display: contents;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    gap: 2em;
+}
+
+/* 左侧：今按钮 */
+.today-label:nth-child(1) {
+    text-align: center;
+}
+
+/* 中间：月份导航 */
+.calendar-header-block-month {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 2px;
+    text-align: center;
+    min-width: 6em;
+    border-radius: 4px;
+}
+
+/* 右侧：年按钮 */
+.today-label:nth-child(2) {
+    text-align: center;
+}
+
+
+
+
+
+.calendar-header-block-label {
+    display: none;
 }
 
 .calendar-header-body {
@@ -140,6 +118,9 @@
     font-size: 0.9em;
     cursor: pointer;
     transition: all 0.2s ease;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
 }
 
 .today-unselected {
@@ -215,17 +196,17 @@
     min-width: calc(33.333% - 0.3em);
     max-width: calc(33.333% - 0.3em);
     padding: 0.3em;
-    border: 1px solid var(--divider-color);
+    border: none;
     border-radius: 0.3em;
     background-color: transparent;
     text-align: center;
     cursor: pointer;
     transition: all 0.2s ease;
-    min-height: 2em;
+    min-height: 2.3em;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start; /* ← 关键：顶部对齐 */
     box-sizing: border-box;
 }
 
@@ -243,7 +224,7 @@
 .month-container.selected {
     background-color: var(--interactive-accent);
     color: var(--text-on-accent); 
-    padding: 0.25rem 0.5rem;
+    padding: 0.25em 0.5em;
     border-radius: var(--radius-s, 4px);  /* 如果 --radius-s 未定义，使用 4px */
     transition: background-color 0.2s, color 0.2s;
 }
