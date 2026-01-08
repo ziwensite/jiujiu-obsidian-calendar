@@ -42,7 +42,7 @@
 }
 
 /* 中间：月份导航 */
-.calendar-header-block-month {
+.calendar-header-block-month, .calendar-header-block-year {
     display: flex;
     justify-content: center;
     align-items: center;
@@ -97,7 +97,7 @@
     color: var(--text-normal);
     padding: 0.1em 0.3em;
     border-radius: 0.2em;
-    visibility: hidden;
+    visibility: visible;
 }
 
 .calendar-header-body:hover .nav-btn {
@@ -109,9 +109,8 @@
 }
 
 .today-label {
-    width: 1.8em;
-    height: 1.8em;
-    line-height: 1.8em;
+    width: 1.5em;
+    height: 1.5em;
     text-align: center;
     border-radius: 50%;
     font-weight: bold;
