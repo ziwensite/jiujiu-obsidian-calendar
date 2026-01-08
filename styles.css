@@ -448,23 +448,19 @@
     line-height: 1.3;
 }
 
-/* 节日和节气样式 - 蓝色加粗文字，蓝紫相间 */
-.lunar-date.lunar-festival,
+/* 节气样式 - 蓝色加粗文字 */
 .lunar-date.lunar-solarTerm {
     color: #4a90e2;
     font-weight: bold;
     transition: all 0.2s ease;
 }
 
-/* 相邻节日的淡紫色样式 */
-.day-cell:nth-child(7n+6) ~ .day-cell:nth-child(7n+7) .lunar-date.lunar-festival,
-.day-cell:nth-child(7n+6) ~ .day-cell:nth-child(7n+7) .lunar-date.lunar-solarTerm,
-.day-cell + .day-cell .lunar-date.lunar-festival,
-.day-cell + .day-cell .lunar-date.lunar-solarTerm {
-    color: #b700ff;
+/* 节日样式 - 紫色加粗文字 */
+.lunar-date.lunar-festival {
+    color: var(--interactive-accent);
+    font-weight: bold;
+    transition: all 0.2s ease;
 }
-
-
 
 .day-indicators {
     display: flex;
@@ -734,4 +730,139 @@
 /* 确保设置项容器是相对定位，以便下拉列表正确定位 */
 .setting-item-control {
     position: relative;
+}
+
+/* 移动设备适配 */
+@media screen and (max-width: 768px) {
+    /* 增大触摸目标大小 */
+    .nav-btn,
+    .today-label,
+    .filter-btn,
+    .week-number-cell,
+    .day-cell {
+        min-height: 44px;
+        min-width: 44px;
+    }
+    
+    /* 调整日历表格布局 */
+    .calendar-table th,
+    .calendar-table td {
+        font-size: 0.9em;
+        padding: 0.2em;
+    }
+    
+    /* 调整年份导航按钮大小 */
+    .calendar-header-block-year,
+    .calendar-header-block-quarter,
+    .calendar-header-block-month {
+        min-width: 4em;
+    }
+    
+    /* 调整日历头部字体大小 */
+    .calendar-header-content span,
+    .calendar-header-content-quarter span {
+        font-size: 0.9em;
+    }
+    
+    /* 简化节假日标记 */
+    .holiday-status {
+        font-size: 0.6em;
+        min-width: 1.2em;
+        min-height: 1.2em;
+    }
+    
+    /* 调整任务列表布局 */
+    .task-list-container {
+        margin-top: 0.5em;
+    }
+    
+    .filter-buttons {
+        flex-wrap: wrap;
+        gap: 0.2em;
+    }
+    
+    .filter-btn {
+        padding: 0.3em 0.6em;
+        font-size: 0.8em;
+    }
+    
+    /* 简化指示器 */
+    .indicator-dot {
+        width: 0.3em;
+        height: 0.3em;
+    }
+}
+
+/* 小屏幕设备适配 */
+@media screen and (max-width: 480px) {
+    /* 进一步调整日历表格 */
+    .calendar-table th,
+    .calendar-table td {
+        font-size: 0.8em;
+        padding: 0.1em;
+    }
+    
+    /* 简化农历日期显示 */
+    .lunar-date {
+        font-size: 0.5em;
+    }
+    
+    /* 调整导航按钮大小 */
+    .nav-btn {
+        font-size: 1.2em;
+        padding: 0.2em;
+    }
+    
+    /* 简化任务列表 */
+    .task-item {
+        padding: 0.4em;
+    }
+    
+    .task-text {
+        font-size: 0.9em;
+    }
+    
+    /* 调整年视图布局 */
+    .quarter-months {
+        flex-direction: column;
+    }
+    
+    .month-container {
+        min-width: 100%;
+        max-width: 100%;
+        margin-bottom: 0.3em;
+    }
+    
+    /* 简化视觉效果，提高性能 */
+    .day-cell,
+    .week-number-cell {
+        box-shadow: none;
+    }
+    
+    .task-item {
+        box-shadow: none;
+        border: 1px solid var(--background-modifier-border);
+    }
+    
+    /* 减少动画效果 */
+    .lunar-date.lunar-festival,
+    .lunar-date.lunar-solarTerm,
+    .task-item {
+        transition: none;
+    }
+    
+    /* 隐藏不必要的元素 */
+    .week-indicators {
+        display: none;
+    }
+    
+    /* 简化过滤器按钮 */
+    .filter-buttons {
+        justify-content: center;
+    }
+    
+    .filter-btn {
+        box-shadow: none;
+        border: 1px solid var(--interactive-accent);
+    }
 }
