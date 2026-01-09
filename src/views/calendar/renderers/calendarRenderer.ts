@@ -49,32 +49,38 @@ export class CalendarRenderer {
 
         // 季度循环（Q1到Q4）
         for (let quarter = 0; quarter < 4; quarter++) {
-            // 季度容器
-            const quarterContainer = yearViewContainer.createEl("div", {cls: "quarter-container"});
-
+            // 创建季度和月份的行容器
+            const quarterRow = yearViewContainer.createEl("div", {cls: "year-view-quarter-row"});
+            
+            // 季度容器（左边列）
+            const quarterContainer = quarterRow.createEl("div", {cls: "month-container quarter-container"});
+            
             // 季度标题
-            const quarterHeader = quarterContainer.createEl("div", { 
+            quarterContainer.createEl("div", { 
                 text: `${quarter + 1}季度`,
-                cls: "quarter-header"
+                cls: "month-header"
             });
-
-            // 季度月份容器
-            const quarterMonths = quarterContainer.createEl("div", {cls: "quarter-months"});
-
+            
+            // 季度状态指示器
+            quarterContainer.createEl("div", {cls: "month-indicators"});
+            
+            // 月份容器（右边行）
+            const monthsContainer = quarterRow.createEl("div", {cls: "year-view-months-row"});
+            
             // 每个季度包含3个月
-            for (let month = 0; month < 3; month++) {
+            for (let monthInQuarter = 0; monthInQuarter < 3; monthInQuarter++) {
                 // 计算当前月份索引
-                const currentMonthIndex = quarter * 3 + month;
-
+                const currentMonthIndex = quarter * 3 + monthInQuarter;
+                
                 // 月份容器
-                const monthContainer = quarterMonths.createEl("div", {cls: "month-container"});
-
+                const monthContainer = monthsContainer.createEl("div", {cls: "month-container"});
+                
                 // 月份标题
                 monthContainer.createEl("div", { 
                     text: `${currentMonthIndex + 1}月`,
                     cls: "month-header"
                 });
-
+                
                 // 月份状态指示器
                 monthContainer.createEl("div", {cls: "month-indicators"});
             }

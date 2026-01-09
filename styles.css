@@ -151,45 +151,76 @@
     box-sizing: border-box;
 }
 
-.quarter-container {
+/* 年视图行容器 */
+.year-view-row {
     display: flex;
+    gap: 0.3em;
+    justify-content: flex-start;
     align-items: center;
-    gap: 0.5em;
-    padding: 0.3em;
-    border-radius: 0.3em;
-    background-color: transparent;
     width: 100%;
     box-sizing: border-box;
-    min-height: 2.5em;
+    margin-bottom: 0.1em;
+}
+
+/* 年视图季度行容器 */
+.year-view-quarter-row {
+    display: flex;
+    gap: 0.3em;
+    justify-content: flex-start;
+    align-items: stretch;
+    width: 100%;
+    box-sizing: border-box;
+    margin-bottom: 0.3em;
+}
+
+/* 季度容器 */
+.quarter-container {
+    min-width: 5em;
+    max-width: 5em;
+    padding: 0.3em;
+    border: none;
+    border-radius: 0.3em;
+    background-color: transparent;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-height: 2.3em;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    box-sizing: border-box;
+}
+
+/* 月份行容器 */
+.year-view-months-row {
+    display: flex;
+    gap: 0.3em;
+    justify-content: flex-start;
+    align-items: center;
+    flex: 1;
+    box-sizing: border-box;
 }
 
 .quarter-header {
     font-weight: normal;
     font-size: 0.9em;
     text-align: center;
-    width: 5em;
+    width: 100%;
     flex-shrink: 0;
     line-height: 1.2;
     cursor: pointer;
 }
 
 .quarter-header.selected {
-    background-color: var(--interactive-accent);
+    background-color: var(--background-modifier-hover);
     color: var(--text-on-accent); 
     padding: 0.25rem 0.5rem;
     border-radius: var(--radius-s, 4px);  /* 如果 --radius-s 未定义，使用 4px */
     transition: background-color 0.2s, color 0.2s;
 }
 
-.quarter-months {
-    display: flex;
-    gap: 0.3em;
-    justify-content: flex-start;
-    align-items: center;
-    flex: 1;
-    flex-wrap: wrap;
-}
-
+/* 月份容器 */
 .month-container {
     flex: 1;
     min-width: calc(33.333% - 0.3em);
@@ -205,7 +236,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: flex-start; /* ← 关键：顶部对齐 */
+    justify-content: flex-start;
     box-sizing: border-box;
 }
 
@@ -221,7 +252,7 @@
 }
 
 .month-container.selected {
-    background-color: var(--interactive-accent);
+    background-color: var(--background-modifier-hover);
     color: var(--text-on-accent); 
     padding: 0.25em 0.5em;
     border-radius: var(--radius-s, 4px);  /* 如果 --radius-s 未定义，使用 4px */

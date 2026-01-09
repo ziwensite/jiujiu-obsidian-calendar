@@ -673,16 +673,14 @@ export class CalendarView extends ItemView {
             });
         } else {
             // 年视图的季度和月份单元格
-            const quarterHeaders = this.containerEl.querySelectorAll(".quarter-header");
-            quarterHeaders.forEach((header, index) => {
+            // 季度容器（使用与月份容器相同的处理方式）
+            const quarterContainers = this.containerEl.querySelectorAll(".quarter-container");
+            quarterContainers.forEach((container, index) => {
                 const quarter = index;
                 
                 // 单击事件
-                header.addEventListener("click", async () => {
-                    // 移除所有季度和月份的选中状态
-                    document.querySelectorAll(".quarter-header").forEach(el => {
-                        el.classList.remove("selected");
-                    });
+                container.addEventListener("click", async () => {
+                    // 移除所有月份和季度的选中状态
                     document.querySelectorAll(".month-container").forEach(el => {
                         el.classList.remove("selected");
                     });
@@ -690,7 +688,7 @@ export class CalendarView extends ItemView {
                         el.classList.remove("selected");
                     });
                     // 添加当前季度的选中状态
-                    header.classList.add("selected");
+                    container.classList.add("selected");
                     
                     // 计算季度的开始和结束日期
                     const year = this.currentDate.getFullYear();
@@ -704,20 +702,26 @@ export class CalendarView extends ItemView {
                 });
                 
                 // 双击事件
-                header.addEventListener("dblclick", async () => {
+                container.addEventListener("dblclick", async () => {
                     // 双击新建/打开季报
                     const settings = this.plugin.settings.quarterlyNote;
                     const quarterDate = new Date(this.currentDate.getFullYear(), quarter * 3, 1);
                     const fileName = formatDate(quarterDate, settings.fileNameFormat);
                     await createOrOpenNote(this.app, settings.savePath, fileName, settings.templatePath);
                 });
+                
+                // 季度状态指示器
+                const quarterIndicators = container.querySelector(".month-indicators");
+                if (quarterIndicators) {
+                    // 检查季报和任务（使用月份的检查方法，传入季度的第一个月）
+                    this.checkMonthNoteAndTasks(quarter * 3, quarterIndicators as HTMLElement);
+                }
             });
             
-            const monthContainers = this.containerEl.querySelectorAll(".month-container");
+            // 月份容器（排除季度容器）
+            const monthContainers = this.containerEl.querySelectorAll(".month-container:not(.quarter-container)");
             monthContainers.forEach((container, index) => {
-                const quarter = Math.floor(index / 3);
-                const monthInQuarter = index % 3;
-                const currentMonthIndex = quarter * 3 + monthInQuarter;
+                const currentMonthIndex = index;
                 
                 // 月份标题
                 const monthHeader = container.querySelector(".month-header");
@@ -729,9 +733,6 @@ export class CalendarView extends ItemView {
                         el.classList.remove("selected");
                     });
                     document.querySelectorAll(".quarter-container").forEach(el => {
-                        el.classList.remove("selected");
-                    });
-                    document.querySelectorAll(".quarter-header").forEach(el => {
                         el.classList.remove("selected");
                     });
                     // 添加当前月份的选中状态
@@ -748,15 +749,13 @@ export class CalendarView extends ItemView {
                 });
                 
                 // 双击事件
-                if (monthHeader) {
-                    monthHeader.addEventListener("dblclick", async () => {
-                        // 双击新建/打开月报
-                        const settings = this.plugin.settings.monthlyNote;
-                        const monthDate = new Date(this.currentDate.getFullYear(), currentMonthIndex, 1);
-                        const fileName = formatDate(monthDate, settings.fileNameFormat);
-                        await createOrOpenNote(this.app, settings.savePath, fileName, settings.templatePath);
-                    });
-                }
+                container.addEventListener("dblclick", async () => {
+                    // 双击新建/打开月报
+                    const settings = this.plugin.settings.monthlyNote;
+                    const monthDate = new Date(this.currentDate.getFullYear(), currentMonthIndex, 1);
+                    const fileName = formatDate(monthDate, settings.fileNameFormat);
+                    await createOrOpenNote(this.app, settings.savePath, fileName, settings.templatePath);
+                });
                 
                 // 月份状态指示器
                 const monthIndicators = container.querySelector(".month-indicators");
@@ -1807,10 +1806,156 @@ export class CalendarView extends ItemView {
             // 使用indicatorRenderer更新指示器
             await this.indicatorRenderer.updateAllDayIndicators(this.containerEl, this.currentDate);
             await this.indicatorRenderer.updateWeekIndicators(this.containerEl, this.currentDate);
+        } else if (this.viewType === 'year') {
+            // 年视图：更新月份指示器
+            await this.updateYearViewMonthIndicators();
         }
         // 如果选中了日期，更新任务列表
         if (this.selectedDate) {
             await this.refreshTaskList();
+        }
+    }
+
+    /**
+     * 更新年视图的月份指示器
+     */
+    private async updateYearViewMonthIndicators() {
+        // 获取年视图容器
+        const yearViewContainer = this.containerEl.querySelector('.year-view-container');
+        if (!yearViewContainer) return;
+        
+        // 获取所有季度容器
+        const quarterContainers = Array.from(yearViewContainer.querySelectorAll('.quarter-container'));
+        
+        // 遍历所有季度容器
+        for (const quarterContainer of quarterContainers) {
+            const quarterHeader = quarterContainer.querySelector('.month-header');
+            if (!quarterHeader) continue;
+            
+            // 解析季度标题，获取季度索引
+            const quarterText = quarterHeader.textContent || '';
+            const quarterMatch = quarterText.match(/(\d+)季度/);
+            if (!quarterMatch || !quarterMatch[1]) continue;
+            
+            const quarterIndex = parseInt(quarterMatch[1]) - 1;
+            if (isNaN(quarterIndex) || quarterIndex < 0 || quarterIndex > 3) continue;
+            
+            // 检查该季度是否有季报和任务
+            const year = this.currentDate.getFullYear();
+            const quarterDate = new Date(year, quarterIndex * 3, 1);
+            
+            let hasQuarterlyNote = false;
+            let hasQuarterlyTask = false;
+            
+            // 检查季报
+            const quarterlySettings = this.plugin.settings.quarterlyNote;
+            const quarterlyFileName = formatDate(quarterDate, quarterlySettings.fileNameFormat);
+            const quarterlyNotePath = `${quarterlySettings.savePath}/${quarterlyFileName}.md`;
+            
+            if (await noteExists(this.app, quarterlyNotePath)) {
+                hasQuarterlyNote = true;
+                
+                // 有季报，检查是否有任务
+                try {
+                    const file = this.app.vault.getAbstractFileByPath(quarterlyNotePath);
+                    if (file instanceof TFile) {
+                        const content = await this.app.vault.read(file);
+                        
+                        // 检查季报中是否有任务
+                        const taskRegex = /^\s*([-\*\d]+\.?)\s*\[([ xX])\]/gm;
+                        const tasks = content.match(taskRegex);
+                        
+                        if (tasks && tasks.length > 0) {
+                            hasQuarterlyTask = true;
+                        }
+                    }
+                } catch (error) {
+                    console.error(`Failed to read quarterly note: ${quarterlyNotePath}`, error);
+                }
+            }
+            
+            // 更新季度指示器
+            const quarterIndicators = quarterContainer.querySelector('.month-indicators');
+            if (quarterIndicators) {
+                quarterIndicators.empty();
+                
+                // 添加实心小圆点表示季报
+                if (hasQuarterlyNote) {
+                    quarterIndicators.createEl('div', {cls: 'indicator-dot solid-dot'});
+                }
+                
+                // 添加空心小圆点表示任务
+                if (hasQuarterlyTask) {
+                    quarterIndicators.createEl('div', {cls: 'indicator-dot hollow-dot'});
+                }
+            }
+        }
+        
+        // 获取所有月份容器（排除季度容器）
+        const monthContainers = Array.from(yearViewContainer.querySelectorAll('.month-container:not(.quarter-container)'));
+        
+        // 遍历所有月份容器
+        for (const monthContainer of monthContainers) {
+            const monthHeader = monthContainer.querySelector('.month-header');
+            if (!monthHeader) continue;
+            
+            // 解析月份标题，获取月份索引
+            const monthText = monthHeader.textContent || '';
+            const monthMatch = monthText.match(/(\d+)月/);
+            if (!monthMatch || !monthMatch[1]) continue;
+            
+            const monthIndex = parseInt(monthMatch[1]) - 1;
+            if (isNaN(monthIndex) || monthIndex < 0 || monthIndex > 11) continue;
+            
+            // 检查该月份是否有月报和任务
+            const year = this.currentDate.getFullYear();
+            const monthDate = new Date(year, monthIndex, 1);
+            
+            let hasMonthlyNote = false;
+            let hasMonthlyTask = false;
+            
+            // 检查月报
+            const monthlySettings = this.plugin.settings.monthlyNote;
+            const monthlyFileName = formatDate(monthDate, monthlySettings.fileNameFormat);
+            const monthlyNotePath = `${monthlySettings.savePath}/${monthlyFileName}.md`;
+            
+            if (await noteExists(this.app, monthlyNotePath)) {
+                hasMonthlyNote = true;
+                
+                // 检查是否有任务
+                try {
+                    const file = this.app.vault.getAbstractFileByPath(monthlyNotePath);
+                    if (file instanceof TFile) {
+                        const content = await this.app.vault.read(file);
+                        
+                        // 检查是否有任务
+                        const taskRegex = /^\s*([-\*\d]+\.?)\s*\[([ xX])\]/gm;
+                        const tasks = content.match(taskRegex);
+                        
+                        if (tasks && tasks.length > 0) {
+                            hasMonthlyTask = true;
+                        }
+                    }
+                } catch (error) {
+                    console.error(`Failed to read monthly note: ${monthlyNotePath}`, error);
+                }
+            }
+            
+            // 更新月份指示器
+            const monthIndicators = monthContainer.querySelector('.month-indicators');
+            if (monthIndicators) {
+                monthIndicators.empty();
+                
+                // 添加实心小圆点表示月报
+                if (hasMonthlyNote) {
+                    monthIndicators.createEl('div', {cls: 'indicator-dot solid-dot'});
+                }
+                
+                // 添加空心小圆点表示任务
+                if (hasMonthlyTask) {
+                    monthIndicators.createEl('div', {cls: 'indicator-dot hollow-dot'});
+                }
+            }
         }
     }
 
@@ -2007,14 +2152,14 @@ export class CalendarView extends ItemView {
     }
     
     /**
-     * 处理文件变化事件，只更新相关的单元格指示器
+     * 处理文件变化事件，更新所有相关的指示器
      */
     private async handleFileChange(file: any) {
-        await this.eventHandler.handleFileChange(file, 
-            async (date) => await this.updateSingleDayIndicator(date),
-            async (date) => await this.updateSingleWeekIndicator(date),
-            async () => await this.refreshTaskList()
-        );
+        // 更新所有指示器（包括年视图的月份指示器）
+        await this.updateIndicators();
+        
+        // 同时更新任务列表
+        await this.refreshTaskList();
     }
     
     /**
