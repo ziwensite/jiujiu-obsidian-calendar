@@ -1,4 +1,3 @@
-
 import { MyPlugin } from '../../../main';
 import { getLunarDate, getHolidayStatus, formatDate } from '../../../utils/dateUtils';
 import { noteExists } from '../../../services/noteService';
@@ -149,21 +148,6 @@ export class CalendarRenderer {
         });
         
         monthNavBody.createEl("span", {text: "›", cls: "nav-btn next-btn"});
-    }
-
-    /**
-     * 构建标签块（今日和视图切换按钮）
-     */
-    private buildLabelBlock(container: HTMLElement) {
-        const labelBlock = container.createEl("div", {cls: "calendar-header-block-label"});
-        labelBlock.createEl("div", { 
-            text: "今",
-            cls: "today-label today-unselected"
-        });
-        labelBlock.createEl("div", { 
-            text: "月",
-            cls: "today-label today-unselected"
-        });
     }
 
     /**

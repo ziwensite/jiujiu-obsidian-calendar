@@ -713,8 +713,8 @@ export class CalendarView extends ItemView {
                 // 季度状态指示器
                 const quarterIndicators = container.querySelector(".month-indicators");
                 if (quarterIndicators) {
-                    // 检查季报和任务（使用月份的检查方法，传入季度的第一个月）
-                    this.checkMonthNoteAndTasks(quarter * 3, quarterIndicators as HTMLElement);
+                    // 检查季报和任务
+                    this.checkQuarterNoteAndTasks(quarter, quarterIndicators as HTMLElement);
                 }
             });
             
@@ -768,6 +768,65 @@ export class CalendarView extends ItemView {
     }
 
     /**
+     * 检查季度笔记和任务
+     */
+    private async checkQuarterNoteAndTasks(quarterIndex: number, indicators: HTMLElement) {
+        const quarterDate = new Date(this.currentDate.getFullYear(), quarterIndex * 3, 1);
+        const quarterlySettings = this.plugin.settings.quarterlyNote;
+        const quarterlyFileName = formatDate(quarterDate, quarterlySettings.fileNameFormat);
+        const quarterlyNotePath = `${quarterlySettings.savePath}/${quarterlyFileName}.md`;
+        
+        let hasQuarterlyNote = false;
+        let hasQuarterlyTask = false;
+        
+        // 检查是否有季报
+        if (await noteExists(this.app, quarterlyNotePath)) {
+            hasQuarterlyNote = true;
+            
+            // 有季报，检查是否有任务
+            try {
+                const file = this.app.vault.getAbstractFileByPath(quarterlyNotePath);
+                if (file && 'stat' in file) {
+                    const content = await this.app.vault.read(file as any);
+                    
+                    // 检查季报中是否有任务
+                    const taskRegex = /^\s*([-\*\d]+\.?)\s*\[([ xX])\]/gm;
+                    const tasks = content.match(taskRegex);
+                    
+                    if (tasks && tasks.length > 0) {
+                        hasQuarterlyTask = true;
+                    }
+                }
+            } catch (error) {
+                console.error(`Failed to read quarterly note: ${quarterlyNotePath}`, error);
+            }
+        }
+        
+        // 检查该季度内是否有截止任务
+        const allTasks = await extractTasks(this.app, this.plugin.settings);
+        const year = this.currentDate.getFullYear();
+        const quarterStartDate = new Date(year, quarterIndex * 3, 1);
+        const quarterEndDate = new Date(year, quarterIndex * 3 + 3, 0);
+        quarterEndDate.setHours(23, 59, 59, 999);
+        
+        for (const task of allTasks) {
+            if (task.dueDate && task.dueDate >= quarterStartDate && task.dueDate <= quarterEndDate) {
+                hasQuarterlyTask = true;
+                break;
+            }
+        }
+        
+        // 添加状态指示器
+        if (hasQuarterlyNote) {
+            indicators.createEl("div", {cls: "indicator-dot solid-dot"});
+        }
+        
+        if (hasQuarterlyTask) {
+            indicators.createEl("div", {cls: "indicator-dot hollow-dot"});
+        }
+    }
+
+    /**
      * 检查月份笔记和任务
      */
     private async checkMonthNoteAndTasks(monthIndex: number, indicators: HTMLElement) {
@@ -799,6 +858,20 @@ export class CalendarView extends ItemView {
                 }
             } catch (error) {
                 console.error(`Failed to read monthly note: ${monthlyNotePath}`, error);
+            }
+        }
+        
+        // 检查该月份内是否有截止任务
+        const allTasks = await extractTasks(this.app, this.plugin.settings);
+        const year = this.currentDate.getFullYear();
+        const monthStartDate = new Date(year, monthIndex, 1);
+        const monthEndDate = new Date(year, monthIndex + 1, 0);
+        monthEndDate.setHours(23, 59, 59, 999);
+        
+        for (const task of allTasks) {
+            if (task.dueDate && task.dueDate >= monthStartDate && task.dueDate <= monthEndDate) {
+                hasMonthlyTask = true;
+                break;
             }
         }
         
@@ -1874,6 +1947,19 @@ export class CalendarView extends ItemView {
                 }
             }
             
+            // 检查该季度内是否有截止任务
+            const allTasks = await extractTasks(this.app, this.plugin.settings);
+            const quarterStartDate = new Date(year, quarterIndex * 3, 1);
+            const quarterEndDate = new Date(year, quarterIndex * 3 + 3, 0);
+            quarterEndDate.setHours(23, 59, 59, 999);
+            
+            for (const task of allTasks) {
+                if (task.dueDate && task.dueDate >= quarterStartDate && task.dueDate <= quarterEndDate) {
+                    hasQuarterlyTask = true;
+                    break;
+                }
+            }
+            
             // 更新季度指示器
             const quarterIndicators = quarterContainer.querySelector('.month-indicators');
             if (quarterIndicators) {
@@ -1938,6 +2024,19 @@ export class CalendarView extends ItemView {
                     }
                 } catch (error) {
                     console.error(`Failed to read monthly note: ${monthlyNotePath}`, error);
+                }
+            }
+            
+            // 检查该月份内是否有截止任务
+            const allTasks = await extractTasks(this.app, this.plugin.settings);
+            const monthStartDate = new Date(year, monthIndex, 1);
+            const monthEndDate = new Date(year, monthIndex + 1, 0);
+            monthEndDate.setHours(23, 59, 59, 999);
+            
+            for (const task of allTasks) {
+                if (task.dueDate && task.dueDate >= monthStartDate && task.dueDate <= monthEndDate) {
+                    hasMonthlyTask = true;
+                    break;
                 }
             }
             
