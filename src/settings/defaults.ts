@@ -149,7 +149,7 @@ export const DEFAULT_SETTINGS: MyPluginSettings = {
                     },
                     format: {
                         enabled: true,
-                        format: "⏰  {{VALUE}}  \n"
+                        format: "⏰  {{VALUE}}"
                     },
                     prepend: false,
                     appendLink: false,

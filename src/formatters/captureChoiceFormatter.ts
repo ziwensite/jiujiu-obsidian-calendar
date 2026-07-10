@@ -67,7 +67,48 @@ export class CaptureChoiceFormatter {
 		if (formatted.includes("{{VALUE}}")) {
 			const selectedText = await this.getSelectedText();
 			taskText = selectedText.trim() || "";
-			formatted = formatted.replace(/\{\{VALUE\}\}/g, taskText);
+
+			// 计算自动添加的日期字符串（放在 {{VALUE}} 替换之前，确保日期紧跟在内容后）
+			let dateString = "";
+			if (this.choice && taskText) {
+				// 自动添加创建日期
+				if (this.choice.autoAddCreatedDate) {
+					const createdDate = localDateStr(new Date());
+					dateString += ` ➕ ${createdDate}`;
+				}
+
+				// 自动添加截止日期
+				if (this.choice.autoAddDueDate) {
+					let dueDate = new Date();
+					switch (this.choice.dueDateOption) {
+						case "today":
+							// 使用当前日期
+							break;
+						case "custom":
+							// 自定义天数
+							dueDate.setDate(dueDate.getDate() + (this.choice.customDueDays || 1));
+							break;
+						case "weekend":
+							// 本周末（周六）
+							const dayOfWeek = dueDate.getDay();
+							const daysToWeekend = dayOfWeek === 0 ? 6 : 6 - dayOfWeek;
+							dueDate.setDate(dueDate.getDate() + daysToWeekend);
+							break;
+						case "monthEnd":
+							// 本月底
+							dueDate.setMonth(dueDate.getMonth() + 1, 0);
+							break;
+						case "yearEnd":
+							// 本年底
+							dueDate = new Date(dueDate.getFullYear(), 11, 31);
+							break;
+					}
+					const dueDateStr = localDateStr(dueDate);
+					dateString += ` 📅 ${dueDateStr}`;
+				}
+			}
+
+			formatted = formatted.replace(/\{\{VALUE\}\}/g, taskText + dateString);
 		}
 		// Replace {{TITLE}} with file title
 		if (formatted.includes("{{TITLE}}")) {
@@ -94,53 +135,7 @@ export class CaptureChoiceFormatter {
 				}
 			});
 		}
-		
-		// 自动添加创建日期和截止日期
-		if (this.choice && taskText) {
-			let dateString = "";
-			
-			// 自动添加创建日期
-			if (this.choice.autoAddCreatedDate) {
-				const createdDate = localDateStr(new Date());
-				dateString += ` ➕ ${createdDate}`;
-			}
-			
-			// 自动添加截止日期
-			if (this.choice.autoAddDueDate) {
-				let dueDate = new Date();
-				switch (this.choice.dueDateOption) {
-					case "today":
-						// 使用当前日期
-						break;
-					case "custom":
-						// 自定义天数
-						dueDate.setDate(dueDate.getDate() + (this.choice.customDueDays || 1));
-						break;
-					case "weekend":
-						// 本周末（周六）
-						const dayOfWeek = dueDate.getDay();
-						const daysToWeekend = dayOfWeek === 0 ? 6 : 6 - dayOfWeek;
-						dueDate.setDate(dueDate.getDate() + daysToWeekend);
-						break;
-					case "monthEnd":
-						// 本月底
-						dueDate.setMonth(dueDate.getMonth() + 1, 0);
-						break;
-					case "yearEnd":
-						// 本年底
-						dueDate = new Date(dueDate.getFullYear(), 11, 31);
-						break;
-				}
-				const dueDateStr = localDateStr(dueDate);
-				dateString += ` 📅 ${dueDateStr}`;
-			}
-			
-			// 如果需要添加日期，将其追加到格式化内容末尾
-			if (dateString) {
-				formatted += dateString;
-			}
-		}
-		
+
 		return formatted;
 	}
 
