@@ -27,7 +27,6 @@ export default interface ICaptureChoice extends IChoice {
 		* - AppendLinkOptions: New format with configurable placement options
 		*/
 	appendLink: boolean | AppendLinkOptions;
-	task: boolean;
 	insertAfter: {
 		enabled: boolean;
 		after: string;

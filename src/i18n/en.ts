@@ -141,8 +141,6 @@ export const en: Dict = {
     '附加链接': 'Append link',
     '在当前文件中附加到捕获文件的链接': 'Append a link to the captured file',
 
-    '任务': 'Task',
-    '将内容格式化为任务': 'Format content as a task',
     '启用格式': 'Enable format',
     '自动添加创建日期': 'Auto-add created date',
     '自动为捕获的内容添加创建日期': 'Auto-add created date to captured content',

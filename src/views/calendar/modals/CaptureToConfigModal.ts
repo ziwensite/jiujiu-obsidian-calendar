@@ -297,16 +297,6 @@ export class CaptureToConfigModal extends Modal {
     }
 
     private addContentSettings(container: HTMLElement) {
-        // Task
-        new Setting(container)
-            .setName(t('任务'))
-            .setDesc(t('将内容格式化为任务'))
-            .addToggle(toggle => toggle
-                .setValue(this.config.task)
-                .onChange(value => {
-                    this.config.task = value;
-                }));
-
         // Format enabled
         const formatEnabledSetting = new Setting(container)
             .setName(t('启用格式'))

@@ -542,7 +542,6 @@ export async function createTaskInNote(
                 customDueDays: 1,
                 prepend: false,
                 appendLink: false,
-                task: true,
                 insertAfter: {
                     enabled: true,
                     after: "## 日常记录",
@@ -648,11 +647,10 @@ export async function createTaskInNote(
                 },
                 format: {
                     enabled: configToUse.format.enabled,
-                    format: configToUse.format.format.replace(/\{\{VALUE\}\}/g, finalTaskText).replace(/\{\{DATE\}\}/g, formatDate(date, "YYYY-MM-DD")),
+                    format: configToUse.format.format,
                 },
                 prepend: configToUse.prepend,
                 appendLink: configToUse.appendLink,
-                task: configToUse.task,
                 insertAfter: {
                     enabled: configToUse.insertAfter.enabled,
                     after: configToUse.insertAfter.after,
@@ -681,6 +679,7 @@ export async function createTaskInNote(
             
             // 创建并运行 CaptureChoiceEngine
             const engine = new CaptureChoiceEngine(app, plugin, captureChoice, choiceExecutor);
+            engine.setCaptureValue(finalTaskText);
             await engine.run();
         } catch (error) {
         console.error(`Failed to create task in note:`, error);

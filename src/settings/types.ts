@@ -57,7 +57,6 @@ export interface CaptureToConfig {
     format: FormatSettings;
     prepend: boolean;
     appendLink: boolean;
-    task: boolean;
     autoAddCreatedDate: boolean;
     autoAddDueDate: boolean;
     dueDateOption: "today" | "custom" | "weekend" | "monthEnd" | "yearEnd";

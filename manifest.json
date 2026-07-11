@@ -1,7 +1,7 @@
 {
 	"id": "jiujiu-tasks-calendar",
 	"name": "JiuJiu Tasks Calendar",
-	"version": "1.0.7",
+	"version": "1.0.8",
 	"minAppVersion": "0.15.0",
 	"description": "综合性日历插件，支持农历、节假日、任务管理、笔记管理等功能",
 	"author": "JiuJiu",

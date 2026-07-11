@@ -861,11 +861,10 @@ text: t("取消"),
                 },
                 format: {
                     enabled: true,
-                    format: "{{VALUE}}\n"
+                    format: "- [ ] {{VALUE}}\n"
                 },
                 prepend: false,
                 appendLink: false,
-                task: true,
                 insertAfter: {
                     enabled: false,
                     after: "",

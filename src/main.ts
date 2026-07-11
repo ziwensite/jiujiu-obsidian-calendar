@@ -378,7 +378,6 @@ async onload() {
                 },
                 prepend: config.prepend,
                 appendLink: config.appendLink,
-                task: config.task,
                 insertAfter: config.insertAfter,
                 newLineCapture: config.newLineCapture,
                 openFile: config.openFile,

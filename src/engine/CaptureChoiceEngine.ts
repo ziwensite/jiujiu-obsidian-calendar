@@ -32,6 +32,10 @@ export class CaptureChoiceEngine {
 		this.formatter.setChoice(choice);
 	}
 
+	public setCaptureValue(value: string): void {
+		this.formatter.setCaptureValue(value);
+	}
+
 	private showSuccessNotice(
 		file: TFile,
 		{ wasNewFile, action }: { wasNewFile: boolean; action: CaptureAction },
@@ -170,8 +174,6 @@ export class CaptureChoiceEngine {
 
 		if (!this.choice.format.enabled) content = "{{VALUE}}";
 		else content = this.choice.format.format;
-
-		if (this.choice.task) content = `- [ ] ${content}\n`;
 
 		return content;
 	}

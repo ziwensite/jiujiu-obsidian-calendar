@@ -27,6 +27,7 @@ export class CaptureChoiceFormatter {
 	private templaterProcessed = false;
 	private title: string = "";
 	private inputMethod: 'single-line' | 'multi-line' | 'none' = 'single-line';
+	private captureValue: string | null = null;
 
 	constructor(app: App, plugin: MyPlugin, choiceExecutor: IChoiceExecutor) {
 		this.app = app;
@@ -58,6 +59,10 @@ export class CaptureChoiceFormatter {
 
 	public setChoice(choice: ICaptureChoice | null): void {
 		this.choice = choice;
+	}
+
+	public setCaptureValue(value: string): void {
+		this.captureValue = value;
 	}
 
 	public async formatContentOnly(input: string): Promise<string> {
@@ -119,22 +124,20 @@ export class CaptureChoiceFormatter {
 		// Support both {{DATE}} and {{DATE:format}} formats
 		const targetDate = (this.choice as any)?._targetDate || new Date();
 		const dateRegex = /\{\{DATE(?::([^}]+))?\}\}/gi;
-		if (dateRegex.test(formatted)) {
-			formatted = formatted.replace(dateRegex, (match, format) => {
-				if (format) {
-					// Handle custom format
-					try {
-						return formatDate(targetDate, format);
-					} catch (error) {
-						// Fallback to ISO date if format is invalid
-						return localDateStr(targetDate);
-					}
-				} else {
-					// Default format: YYYY-MM-DD
+		formatted = formatted.replace(dateRegex, (match, format) => {
+			if (format) {
+				// Handle custom format
+				try {
+					return formatDate(targetDate, format);
+				} catch (error) {
+					// Fallback to ISO date if format is invalid
 					return localDateStr(targetDate);
 				}
-			});
-		}
+			} else {
+				// Default format: YYYY-MM-DD
+				return localDateStr(targetDate);
+			}
+		});
 
 		return formatted;
 	}
@@ -168,8 +171,7 @@ export class CaptureChoiceFormatter {
 		if (formattedContentIsEmpty) return this.fileContent;
 
 		if (choice.prepend) {
-			const shouldInsertLinebreak = !choice.task;
-			return `${this.fileContent}${shouldInsertLinebreak ? "\n" : ""}${formatted}`;
+			return `${this.fileContent}\n${formatted}`;
 		}
 
 		if (choice.insertAfter.enabled) {
@@ -286,6 +288,10 @@ export class CaptureChoiceFormatter {
 
 
 	private async getSelectedText(): Promise<string> {
+		if (this.captureValue !== null) {
+			return this.captureValue;
+		}
+
 		const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
 		let selection = "";
 		if (activeView) {
@@ -356,15 +362,15 @@ export class CaptureChoiceFormatter {
 		pos: number,
 	): string {
 		if (pos === -1) {
-			const shouldAddLinebreak = !this.choice?.task;
-			return `${text}${shouldAddLinebreak ? "\n" : ""}${body}`;
+			return `${text}\n${body}`;
 		}
 
 		const splitContent = body.split("\n");
 		const pre = splitContent.slice(0, pos + 1).join("\n");
 		const post = splitContent.slice(pos + 1).join("\n");
 
-		return `${pre}\n${text}${post}`;
+		const textWithNewline = text.endsWith("\n") ? text : text + "\n";
+		return `${pre}\n${textWithNewline}${post}`;
 	}
 
 	private async insertAfterHandler(formatted: string) {
